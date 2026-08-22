@@ -79,12 +79,24 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "ApiServer v1");
+
         var swaggerClientId = builder.Configuration["SwaggerOAuth:ClientId"];
+        var swaggerScope = builder.Configuration["SwaggerOAuth:Scope"];
         if (!string.IsNullOrWhiteSpace(swaggerClientId))
         {
             options.OAuthClientId(swaggerClientId);
+            options.OAuthAppName("ApiServer Swagger");
             options.OAuthUsePkce();
             options.OAuthScopeSeparator(" ");
+            options.OAuthAdditionalQueryStringParams(new Dictionary<string, string>
+            {
+                ["prompt"] = "select_account"
+            });
+        }
+        if (!string.IsNullOrWhiteSpace(swaggerScope))
+        {
+            options.OAuthScopes(swaggerScope);
         }
     });
 }

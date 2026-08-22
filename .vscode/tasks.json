@@ -2,6 +2,19 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "stop-local-debug-servers",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/Stop-LocalDebugServers.ps1"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "build",
       "command": "dotnet",
       "type": "process",
@@ -10,6 +23,15 @@
         "${workspaceFolder}/EntraMcpMvp.sln"
       ],
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "prepare-api-debug",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "stop-local-debug-servers",
+        "build"
+      ],
+      "problemMatcher": []
     }
   ]
 }

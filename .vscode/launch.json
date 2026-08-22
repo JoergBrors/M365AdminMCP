@@ -15,7 +15,7 @@
       "name": "Debug ApiServer",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
+      "preLaunchTask": "prepare-api-debug",
       "program": "${workspaceFolder}/src/ApiServer/bin/Debug/net8.0/ApiServer.dll",
       "args": [],
       "cwd": "${workspaceFolder}/src/ApiServer",
@@ -23,7 +23,7 @@
       "serverReadyAction": {
         "action": "openExternally",
         "pattern": "\\bNow listening on:\\s+http://\\S+:5043",
-        "uriFormat": "http://localhost:5043/swagger"
+        "uriFormat": "http://localhost:5043/swagger/index.html?localDebug=1"
       },
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
