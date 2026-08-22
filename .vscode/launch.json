@@ -34,11 +34,17 @@
       "name": "Debug McpServer",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
+      "preLaunchTask": "prepare-mcp-debug",
+      "postDebugTask": "stop-local-debug-servers",
       "program": "${workspaceFolder}/src/McpServer/bin/Debug/net8.0/McpServer.dll",
       "args": [],
       "cwd": "${workspaceFolder}/src/McpServer",
       "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+http://\\S+:5143",
+        "uriFormat": "http://localhost:5143/healthz"
+      },
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_URLS": "http://localhost:5143;https://localhost:7143",

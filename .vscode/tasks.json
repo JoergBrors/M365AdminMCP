@@ -25,11 +25,53 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "start-api-debug-background",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--no-build",
+        "--project",
+        "${workspaceFolder}/src/ApiServer/ApiServer.csproj",
+        "--launch-profile",
+        "ApiServer"
+      ],
+      "isBackground": true,
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "ASPNETCORE_ENVIRONMENT": "Development",
+          "ASPNETCORE_URLS": "http://localhost:5043;https://localhost:7043"
+        }
+      },
+      "problemMatcher": {
+        "owner": "api-server",
+        "pattern": {
+          "regexp": "."
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "\\bNow listening on:\\s+http://\\S+:5043"
+        }
+      }
+    },
+    {
       "label": "prepare-api-debug",
       "dependsOrder": "sequence",
       "dependsOn": [
         "stop-local-debug-servers",
         "build"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "prepare-mcp-debug",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "stop-local-debug-servers",
+        "build",
+        "start-api-debug-background"
       ],
       "problemMatcher": []
     }

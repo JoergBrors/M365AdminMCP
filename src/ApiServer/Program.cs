@@ -8,6 +8,13 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+}
+
 // --- Authentication: validiert Entra-ID-Tokens (JWT Bearer) ---
 // Unterstützt sowohl App-only-Tokens (Claim "roles") als auch Delegated-Tokens (Claim "scp").
 builder.Services
