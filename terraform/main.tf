@@ -37,6 +37,7 @@ module "infra" {
 
   api_app_id             = module.entra_id.api_app_id
   api_app_identifier_uri = module.entra_id.api_app_identifier_uri
+  swagger_client_app_id  = module.entra_id.swagger_client_app_id
   tenant_id              = module.entra_id.tenant_id
   mcp_app_id             = module.entra_id.mcp_app_id
   mcp_app_client_secret  = module.entra_id.mcp_app_client_secret

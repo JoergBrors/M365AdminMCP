@@ -109,7 +109,7 @@ resource "azurerm_linux_web_app" "api" {
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.api_app_id
     "AzureAd__Audience"                     = var.api_app_identifier_uri
-    "SwaggerOAuth__ClientId"                = var.api_app_id
+    "SwaggerOAuth__ClientId"                = var.swagger_client_app_id
     "SwaggerOAuth__Scope"                   = "${var.api_app_identifier_uri}/Tasks.ReadWrite"
     "ASPNETCORE_ENVIRONMENT"                = "Production"
   }

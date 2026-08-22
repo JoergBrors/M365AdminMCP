@@ -116,6 +116,7 @@ $variables = [ordered]@{
     "MCP_APP_HOSTNAME" = $mcpAppHostname
     "API_APP_ID" = Get-TerraformOutputValue $outputs "api_app_id"
     "API_APP_IDENTIFIER_URI" = Get-TerraformOutputValue $outputs "api_app_identifier_uri"
+    "SWAGGER_CLIENT_APP_ID" = Get-TerraformOutputValue $outputs "swagger_client_app_id"
     "MCP_APP_ID" = Get-TerraformOutputValue $outputs "mcp_app_id"
     "KEY_VAULT_NAME" = Get-TerraformOutputValue $outputs "key_vault_name"
 }

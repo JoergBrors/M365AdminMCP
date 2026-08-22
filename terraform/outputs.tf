@@ -21,3 +21,7 @@ output "api_app_identifier_uri" {
 output "mcp_app_id" {
   value = module.entra_id.mcp_app_id
 }
+
+output "swagger_client_app_id" {
+  value = module.entra_id.swagger_client_app_id
+}

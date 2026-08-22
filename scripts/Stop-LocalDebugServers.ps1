@@ -11,15 +11,24 @@ param(
 $ErrorActionPreference = "Stop"
 $processIds = [System.Collections.Generic.HashSet[int]]::new()
 
-foreach ($port in $Ports) {
-    $lines = netstat -ano | Select-String -Pattern ":$port\s" | Select-String -Pattern "LISTENING"
-    foreach ($line in $lines) {
-        $parts = ($line.ToString() -split "\s+") | Where-Object { $_ }
-        if ($parts.Count -lt 5) { continue }
+if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+    foreach ($connection in Get-NetTCPConnection -LocalPort $Ports -State Listen -ErrorAction SilentlyContinue) {
+        if ($connection.OwningProcess -gt 0) {
+            [void]$processIds.Add([int]$connection.OwningProcess)
+        }
+    }
+}
+else {
+    foreach ($port in $Ports) {
+        $lines = netstat -ano | Select-String -Pattern "^\s*TCP\s+\S+:$port\s+\S+\s+\S+\s+\d+\s*$"
+        foreach ($line in $lines) {
+            $parts = ($line.ToString() -split "\s+") | Where-Object { $_ }
+            if ($parts.Count -lt 5) { continue }
 
-        $pidValue = 0
-        if ([int]::TryParse($parts[-1], [ref]$pidValue) -and $pidValue -gt 0) {
-            [void]$processIds.Add($pidValue)
+            $pidValue = 0
+            if ([int]::TryParse($parts[-1], [ref]$pidValue) -and $pidValue -gt 0) {
+                [void]$processIds.Add($pidValue)
+            }
         }
     }
 }

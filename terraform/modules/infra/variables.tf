@@ -37,6 +37,10 @@ variable "api_app_identifier_uri" {
   type = string
 }
 
+variable "swagger_client_app_id" {
+  type = string
+}
+
 variable "mcp_app_id" {
   type = string
 }

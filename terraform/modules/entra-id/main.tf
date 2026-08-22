@@ -72,6 +72,30 @@ resource "azuread_service_principal" "api" {
   client_id = azuread_application.api.client_id
 }
 
+# --- swagger-client (Browser/SPAs fuer lokale Swagger UI) ---
+
+resource "azuread_application" "swagger" {
+  display_name     = "swagger-client-${var.environment_name}"
+  sign_in_audience = "AzureADMyOrg"
+
+  single_page_application {
+    redirect_uris = var.api_swagger_redirect_uris
+  }
+
+  required_resource_access {
+    resource_app_id = azuread_application.api.client_id
+
+    resource_access {
+      id   = azuread_application.api.oauth2_permission_scope_ids["Tasks.ReadWrite"]
+      type = "Scope"
+    }
+  }
+}
+
+resource "azuread_service_principal" "swagger" {
+  client_id = azuread_application.swagger.client_id
+}
+
 # --- mcp-server (Client App) ---
 
 resource "azuread_application" "mcp" {
@@ -155,6 +179,12 @@ resource "azuread_app_role_assignment" "mcp_to_graph_reports" {
 
 resource "azuread_service_principal_delegated_permission_grant" "mcp_delegated_to_api" {
   service_principal_object_id          = azuread_service_principal.mcp.object_id
+  resource_service_principal_object_id = azuread_service_principal.api.object_id
+  claim_values                         = ["Tasks.ReadWrite"]
+}
+
+resource "azuread_service_principal_delegated_permission_grant" "swagger_delegated_to_api" {
+  service_principal_object_id          = azuread_service_principal.swagger.object_id
   resource_service_principal_object_id = azuread_service_principal.api.object_id
   claim_values                         = ["Tasks.ReadWrite"]
 }

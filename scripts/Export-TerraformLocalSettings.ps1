@@ -66,6 +66,7 @@ $apiAppIdUri = Get-TerraformOutputValue $outputs "api_app_identifier_uri"
 $keyVaultName = Get-TerraformOutputValue $outputs "key_vault_name"
 $mcpAppHostname = Get-TerraformOutputValue $outputs "mcp_app_hostname"
 $mcpAppId = Get-TerraformOutputValue $outputs "mcp_app_id"
+$swaggerClientAppId = Get-TerraformOutputValue $outputs "swagger_client_app_id"
 
 $account = az account show -o json | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or -not $account) {
@@ -125,6 +126,7 @@ Update-DotEnvFile -Path $EnvFile -Values ([ordered]@{
     "API_APP_ID_URI" = $apiAppIdUri
     "MCP_APP_HOSTNAME" = $mcpAppHostname
     "MCP_APP_ID" = $mcpAppId
+    "SWAGGER_CLIENT_APP_ID" = $swaggerClientAppId
     "KEY_VAULT_NAME" = $keyVaultName
     "API_SERVER_BASE_URL" = $apiBaseUrl
 })
@@ -143,7 +145,7 @@ $apiSettings = [ordered]@{
         "Audience" = $apiAppIdUri
     }
     "SwaggerOAuth" = [ordered]@{
-        "ClientId" = $apiAppId
+        "ClientId" = $swaggerClientAppId
         "Scope" = "$apiAppIdUri/Tasks.ReadWrite"
     }
 }
