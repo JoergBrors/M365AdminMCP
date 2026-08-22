@@ -52,3 +52,5 @@ reports/.latest-plan-*
 # OS
 .DS_Store
 Thumbs.db
+
+.fake

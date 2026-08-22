@@ -27,6 +27,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "ApiServer",
+        Version = "v1"
+    });
+
     var tenantId = builder.Configuration["AzureAd:TenantId"];
     var swaggerScope = builder.Configuration["SwaggerOAuth:Scope"];
 
@@ -83,7 +89,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 

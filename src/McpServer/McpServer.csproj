@@ -15,6 +15,10 @@
     <PackageReference Include="Microsoft.Identity.Web" Version="3.3.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
   <!--
     Hinweis: Das MCP-SDK für .NET ist derzeit Preview und Paketname/Version können sich ändern.
     Vor dem ersten Build bitte prüfen:
