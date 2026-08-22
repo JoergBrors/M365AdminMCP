@@ -30,6 +30,6 @@ foreach ($processId in $processIds) {
         Write-Host "Stopped local debug process $processId"
     }
     catch {
-        Write-Host "Skip process $processId: $($_.Exception.Message)"
+        Write-Host "Skip process ${processId}: $($_.Exception.Message)"
     }
 }
