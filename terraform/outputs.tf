@@ -14,6 +14,10 @@ output "api_app_id" {
   value = module.entra_id.api_app_id
 }
 
+output "api_app_identifier_uri" {
+  value = module.entra_id.api_app_identifier_uri
+}
+
 output "mcp_app_id" {
   value = module.entra_id.mcp_app_id
 }

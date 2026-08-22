@@ -3,7 +3,7 @@ output "api_app_id" {
 }
 
 output "api_app_identifier_uri" {
-  value = "api://${azuread_application.api.client_id}"
+  value = one(azuread_application.api.identifier_uris)
 }
 
 output "mcp_app_id" {

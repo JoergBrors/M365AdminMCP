@@ -58,8 +58,10 @@ if ([string]::IsNullOrWhiteSpace($SubscriptionId)) {
 }
 
 $currentAccount = az account show -o json 2>$null | ConvertFrom-Json
-$needsLogin = ($LASTEXITCODE -ne 0) -or (-not $currentAccount) -or
-    ($currentAccount.tenantId -ne $TenantId -and $currentAccount.tenantId -notlike "*$TenantId*")
+$hasActiveTargetSubscription = ($LASTEXITCODE -eq 0) -and $currentAccount -and ($currentAccount.id -eq $SubscriptionId)
+$tenantMatches = ($LASTEXITCODE -eq 0) -and $currentAccount -and
+    ($currentAccount.tenantId -eq $TenantId -or $currentAccount.tenantId -like "*$TenantId*")
+$needsLogin = ($LASTEXITCODE -ne 0) -or (-not $currentAccount) -or (-not $hasActiveTargetSubscription -and -not $tenantMatches)
 
 if ($needsLogin) {
     Write-Host "==> Melde bei Azure an (Tenant: $TenantId) ..." -ForegroundColor Cyan

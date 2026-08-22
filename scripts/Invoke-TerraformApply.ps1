@@ -15,7 +15,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Environment,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$AutoApprove
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,6 +24,17 @@ $RootDir = Split-Path -Parent $PSScriptRoot
 $TfDir = Join-Path $RootDir "terraform"
 $ReportsDir = Join-Path $RootDir "reports"
 $LatestPlanPointer = Join-Path $ReportsDir ".latest-plan-$Environment"
+
+function Invoke-Terraform {
+    param(
+        [Parameter(Mandatory)][string[]]$Arguments
+    )
+
+    & terraform @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform $($Arguments -join ' ') ist fehlgeschlagen (ExitCode: $LASTEXITCODE)."
+    }
+}
 
 Write-Host "### Schritt 1/3: Terraform Plan (Pflicht) ###" -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "Invoke-TerraformPlan.ps1") -Environment $Environment
@@ -34,7 +46,11 @@ $planBin = (Get-Content $LatestPlanPointer -Raw).Trim()
 
 Push-Location $TfDir
 try {
-    $planJson = terraform show -json $planBin | ConvertFrom-Json
+    $planJsonText = & terraform show -json $planBin
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform show -json $planBin ist fehlgeschlagen (ExitCode: $LASTEXITCODE)."
+    }
+    $planJson = $planJsonText | ConvertFrom-Json
     $destroyCount = @($planJson.resource_changes | Where-Object { $_.change.actions -contains "delete" }).Count
 
     if ($destroyCount -gt 0 -and -not $Force) {
@@ -42,18 +58,24 @@ try {
         exit 1
     }
 
-    Write-Host ""
-    Write-Host "### Schritt 2/3: Bestaetigung ###" -ForegroundColor Cyan
-    $confirm = Read-Host "Terraform Apply fuer '$Environment' jetzt ausfuehren? [y/N]"
-    if ($confirm -ne "y" -and $confirm -ne "Y") {
-        Write-Host "Abgebrochen."
-        exit 0
+    if (-not $AutoApprove) {
+        Write-Host ""
+        Write-Host "### Schritt 2/3: Bestaetigung ###" -ForegroundColor Cyan
+        $confirm = Read-Host "Terraform Apply fuer '$Environment' jetzt ausfuehren? [y/N]"
+        if ($confirm -ne "y" -and $confirm -ne "Y") {
+            Write-Host "Abgebrochen."
+            exit 0
+        }
+    }
+    else {
+        Write-Host ""
+        Write-Host "### Schritt 2/3: Bestaetigung uebersprungen (-AutoApprove) ###" -ForegroundColor Cyan
     }
 
     Write-Host ""
     Write-Host "### Schritt 3/3: Apply ###" -ForegroundColor Cyan
-    terraform apply -input=false $planBin
-    terraform output
+    Invoke-Terraform @("apply", "-input=false", $planBin)
+    Invoke-Terraform @("output")
 }
 finally {
     Pop-Location

@@ -36,6 +36,10 @@ resource "azuread_application" "api" {
 
   identifier_uris = ["api://api-server-${var.environment_name}"]
 
+  single_page_application {
+    redirect_uris = var.api_swagger_redirect_uris
+  }
+
   api {
     requested_access_token_version = 2
 

@@ -45,6 +45,8 @@ reports/.latest-plan-*
 .vs/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 
 # OS

@@ -62,6 +62,7 @@ function Get-TerraformOutputValue {
 
 $apiAppHostname = Get-TerraformOutputValue $outputs "api_app_hostname"
 $apiAppId = Get-TerraformOutputValue $outputs "api_app_id"
+$apiAppIdUri = Get-TerraformOutputValue $outputs "api_app_identifier_uri"
 $keyVaultName = Get-TerraformOutputValue $outputs "key_vault_name"
 $mcpAppHostname = Get-TerraformOutputValue $outputs "mcp_app_hostname"
 $mcpAppId = Get-TerraformOutputValue $outputs "mcp_app_id"
@@ -72,7 +73,6 @@ if ($LASTEXITCODE -ne 0 -or -not $account) {
 }
 $tenantId = [string]$account.tenantId
 $apiBaseUrl = "https://$apiAppHostname"
-$apiAppIdUri = "api://$apiAppId"
 
 Write-Host "==> Lese MCP Client Secret aus Key Vault '$keyVaultName' ..." -ForegroundColor Cyan
 $mcpClientSecret = az keyvault secret show `
@@ -141,6 +141,10 @@ $apiSettings = [ordered]@{
         "TenantId" = $tenantId
         "ClientId" = $apiAppId
         "Audience" = $apiAppIdUri
+    }
+    "SwaggerOAuth" = [ordered]@{
+        "ClientId" = $apiAppId
+        "Scope" = "$apiAppIdUri/Tasks.ReadWrite"
     }
 }
 

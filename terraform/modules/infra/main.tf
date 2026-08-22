@@ -109,6 +109,8 @@ resource "azurerm_linux_web_app" "api" {
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.api_app_id
     "AzureAd__Audience"                     = var.api_app_identifier_uri
+    "SwaggerOAuth__ClientId"                = var.api_app_id
+    "SwaggerOAuth__Scope"                   = "${var.api_app_identifier_uri}/Tasks.ReadWrite"
     "ASPNETCORE_ENVIRONMENT"                = "Production"
   }
 }
@@ -136,6 +138,7 @@ resource "azurerm_linux_web_app" "mcp" {
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.mcp_app_id
+    "AzureAd__ApiAppIdUri"                  = var.api_app_identifier_uri
     # Key-Vault-Reference statt Klartext - Web App braucht dafür "Key Vault Secrets User" (s.u.)
     "AzureAd__ClientSecret"  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mcp_client_secret.versionless_id})"
     "ApiServer__BaseUrl"     = "https://${azurerm_linux_web_app.api.default_hostname}"

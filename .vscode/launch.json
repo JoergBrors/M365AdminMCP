@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "compounds": [
+    {
+      "name": "Debug API + MCP",
+      "configurations": [
+        "Debug ApiServer",
+        "Debug McpServer"
+      ],
+      "stopAll": true
+    }
+  ],
+  "configurations": [
+    {
+      "name": "Debug ApiServer",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/ApiServer/bin/Debug/net8.0/ApiServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/ApiServer",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+https://\\S+:7043",
+        "uriFormat": "https://localhost:7043/swagger"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "https://localhost:7043;http://localhost:5043"
+      }
+    },
+    {
+      "name": "Debug McpServer",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/McpServer/bin/Debug/net8.0/McpServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/McpServer",
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "https://localhost:7143;http://localhost:5143",
+        "ApiServer__BaseUrl": "https://localhost:7043"
+      }
+    }
+  ]
+}

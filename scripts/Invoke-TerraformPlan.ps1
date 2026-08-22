@@ -31,18 +31,32 @@ if (-not (Get-Command terraform -ErrorAction SilentlyContinue)) {
 
 & (Join-Path $PSScriptRoot "Connect-Azure.ps1")
 
+function Invoke-Terraform {
+    param(
+        [Parameter(Mandatory)][string[]]$Arguments
+    )
+
+    & terraform @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform $($Arguments -join ' ') ist fehlgeschlagen (ExitCode: $LASTEXITCODE)."
+    }
+}
+
 Push-Location $TfDir
 try {
     Write-Host "==> terraform init ..." -ForegroundColor Cyan
-    terraform init -input=false -upgrade=false
+    Invoke-Terraform @("init", "-input=false", "-upgrade=false")
 
     Write-Host "==> terraform validate ..." -ForegroundColor Cyan
-    terraform validate
+    Invoke-Terraform @("validate")
 
     Write-Host "==> terraform plan ..." -ForegroundColor Cyan
-    terraform plan "-var-file=terraform.$Environment.tfvars" "-out=$PlanBin" -input=false
+    Invoke-Terraform @("plan", "-var-file=terraform.$Environment.tfvars", "-out=$PlanBin", "-input=false")
 
-    $showOutput = terraform show -no-color $PlanBin
+    $showOutput = & terraform show -no-color $PlanBin
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform show -no-color $PlanBin ist fehlgeschlagen (ExitCode: $LASTEXITCODE)."
+    }
     $lines = @(
         "# Terraform Plan Report - Umgebung: $Environment",
         "_Erstellt: $(Get-Date -AsUTC -Format 'yyyy-MM-dd HH:mm:ssZ')_",
@@ -56,7 +70,12 @@ try {
     Write-Host "Plan-Report geschrieben nach: $PlanMd" -ForegroundColor Green
     Write-Host "Binaer-Plan (fuer apply) liegt unter: $PlanBin"
 
-    $planJson = terraform show -json $PlanBin | ConvertFrom-Json
+    $planJsonText = & terraform show -json $PlanBin
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform show -json $PlanBin ist fehlgeschlagen (ExitCode: $LASTEXITCODE)."
+    }
+
+    $planJson = $planJsonText | ConvertFrom-Json
     $destroyCount = @($planJson.resource_changes | Where-Object { $_.change.actions -contains "delete" }).Count
     if ($destroyCount -gt 0) {
         Write-Warning "Plan enthaelt $destroyCount geplante Loeschung(en). Bitte Report manuell pruefen: $PlanMd"

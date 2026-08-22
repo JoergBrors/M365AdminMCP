@@ -1,4 +1,4 @@
-name: Build, What-If & Deploy
+name: Build, Terraform Plan & Deploy
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  id-token: write   # für OIDC-Login gegen Azure
+  id-token: write
   contents: read
   pull-requests: write
 
@@ -21,22 +21,24 @@ jobs:
           dotnet-version: '8.0.x'
       - run: dotnet build EntraMcpMvp.sln
 
-  whatif:
+  terraform-plan:
     needs: build
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+          terraform_wrapper: false
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: What-If (dev)
+      - name: Terraform Plan (dev)
         shell: pwsh
-        run: |
-          ./scripts/Set-EntraIdApps.ps1 -Environment dev
-          ./scripts/Invoke-BicepWhatIf.ps1 -Environment dev
+        run: ./scripts/Invoke-TerraformPlan.ps1 -Environment dev
       - name: Report als PR-Kommentar posten
         uses: actions/github-script@v7
         with:
@@ -44,7 +46,7 @@ jobs:
             const fs = require('fs');
             const path = require('path');
             const dir = 'reports';
-            const files = fs.readdirSync(dir).filter(f => f.startsWith('whatif-azure-'));
+            const files = fs.readdirSync(dir).filter(f => f.startsWith('tfplan-dev-') && f.endsWith('.md'));
             const latest = files.sort().reverse()[0];
             const content = fs.readFileSync(path.join(dir, latest), 'utf8').slice(0, 60000);
             await github.rest.issues.createComment({
@@ -61,25 +63,61 @@ jobs:
     environment: dev
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
+          terraform_wrapper: false
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: What-If + Deploy (dev)
+
+      - name: Terraform Apply (dev)
+        shell: pwsh
+        run: ./scripts/Invoke-TerraformApply.ps1 -Environment dev -AutoApprove
+
+      - name: Terraform Outputs fuer App Deployment lesen
         shell: pwsh
         run: |
-          ./scripts/Set-EntraIdApps.ps1 -Environment dev
-          ./scripts/Invoke-BicepWhatIf.ps1 -Environment dev
-          $desired = Get-Content infra/entra-desired-state/dev.json -Raw | ConvertFrom-Json
-          az deployment group create `
-            --resource-group rg-entramcp-dev `
-            --template-file infra/main.bicep `
-            --parameters infra/parameters/main.dev.bicepparam `
-            --parameters tenantId=$($desired.tenantId) apiAppId=$($desired.apiApp.appId) apiAppIdentifierUri=api://$($desired.apiApp.appId) mcpAppId=$($desired.mcpApp.appId)
+          $outputs = terraform -chdir=terraform output -json | ConvertFrom-Json
+          $apiAppName = $outputs.api_app_hostname.value -replace '\.azurewebsites\.net$', ''
+          $mcpAppName = $outputs.mcp_app_hostname.value -replace '\.azurewebsites\.net$', ''
 
-  # deploy-staging / deploy-prod: analog, mit environment: staging / prod
-  # und "Required reviewers" in den GitHub Environment Settings konfiguriert,
-  # damit vor dem Deployment eine manuelle Freigabe nötig ist.
-  # GitHub-gehostete Runner (ubuntu-latest, windows-latest, macos-latest) haben
-  # PowerShell 7 (pwsh) vorinstalliert - "shell: pwsh" funktioniert auf allen dreien identisch.
+          "API_APP_NAME=$apiAppName" >> $env:GITHUB_ENV
+          "MCP_APP_NAME=$mcpAppName" >> $env:GITHUB_ENV
+          "API_APP_HOSTNAME=$($outputs.api_app_hostname.value)" >> $env:GITHUB_ENV
+          "MCP_APP_HOSTNAME=$($outputs.mcp_app_hostname.value)" >> $env:GITHUB_ENV
+
+          if ($apiAppName -notlike '*-api') {
+            throw "Ungueltiger API App Name aus Terraform Output: $apiAppName"
+          }
+          if ($mcpAppName -notlike '*-mcp') {
+            throw "Ungueltiger MCP App Name aus Terraform Output: $mcpAppName"
+          }
+
+      - name: ApiServer publish
+        run: dotnet publish src/ApiServer/ApiServer.csproj --configuration Release --output publish/api
+
+      - name: McpServer publish
+        run: dotnet publish src/McpServer/McpServer.csproj --configuration Release --output publish/mcp
+
+      - name: Deploy ApiServer package
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.API_APP_NAME }}
+          package: publish/api
+
+      - name: Deploy McpServer package
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.MCP_APP_NAME }}
+          package: publish/mcp
+
+      - name: Deployment Ergebnis
+        run: |
+          echo "ApiServer: https://${API_APP_HOSTNAME}"
+          echo "McpServer: https://${MCP_APP_HOSTNAME}"

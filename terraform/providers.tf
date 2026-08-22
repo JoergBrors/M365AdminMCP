@@ -20,12 +20,12 @@ terraform {
   # Account/Container-Voraussetzung dafür anlegt). Für den allerersten lokalen
   # Testlauf kann dieser Block auskommentiert bleiben (lokaler State), sollte
   # aber vor dem produktiven Einsatz aktiviert werden.
-   backend "azurerm" {
-      resource_group_name  = "rg-tfstate"
-      storage_account_name = "stgeuwmcpo365dev"
-      container_name       = "tfstate"
-     key                  = "entra-mcp-mvp.tfstate"
-   }
+  backend "azurerm" {
+    resource_group_name  = "rg-tfstate"
+    storage_account_name = "stgeuwmcpo365dev"
+    container_name       = "tfstate"
+    key                  = "entra-mcp-mvp.tfstate"
+  }
 }
 
 provider "azurerm" {

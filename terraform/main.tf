@@ -18,6 +18,11 @@ module "entra_id" {
 
   environment_name = var.environment_name
   mcp_redirect_uri = "https://${local.name_prefix}-mcp.azurewebsites.net/signin-oidc"
+  api_swagger_redirect_uris = [
+    "https://${local.name_prefix}-api.azurewebsites.net/swagger/oauth2-redirect.html",
+    "https://localhost:7043/swagger/oauth2-redirect.html",
+    "http://localhost:5043/swagger/oauth2-redirect.html"
+  ]
 }
 
 module "infra" {
