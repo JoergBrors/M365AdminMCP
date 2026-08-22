@@ -1,0 +1,11 @@
+{
+  "experimentalFeaturesEnabled": {
+    "extensibility": true
+  },
+  "analyzers": {
+    "core": {
+      "verbose": false,
+      "enabled": true
+    }
+  }
+}

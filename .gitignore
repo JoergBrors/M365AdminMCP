@@ -1,0 +1,51 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+
+# Secrets - niemals committen
+**/appsettings.Development.json
+**/appsettings.*.local.json
+.env
+.env.*
+*.pfx
+*.pem
+
+# Azure / Bicep
+*.bicepparam.local
+.azure/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Reports (lokal generierte Diffs)
+reports/*.json
+reports/*.md
+reports/*.bin
+reports/.latest-plan-*
+!reports/.gitkeep
+
+# Entra Desired State - Secrets dürfen hier nicht landen, IDs schon
+# (Datei selbst wird versioniert, siehe entra-setup.sh Kommentar)
+
+# IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

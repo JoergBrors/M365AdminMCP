@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UserSecretsId>a1b2c3d4-mcp-server-mvp</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Offizielles MCP C# SDK (Stand jetzt Preview) mit ASP.NET-Core-Hosting (HTTP/SSE-Transport) -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.2.0-preview.1" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.66.1" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="3.3.1" />
+  </ItemGroup>
+
+  <!--
+    Hinweis: Das MCP-SDK für .NET ist derzeit Preview und Paketname/Version können sich ändern.
+    Vor dem ersten Build bitte prüfen:
+      dotnet add package ModelContextProtocol.AspNetCore --version <aktuelle-version>
+    Falls das Paket nicht auffindbar ist, alternativ NuGet-Quelle
+    https://api.nuget.org/v3/index.json prüfen bzw. offizielle MCP-.NET-Doku konsultieren.
+  -->
+
+</Project>

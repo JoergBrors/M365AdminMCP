@@ -1,0 +1,80 @@
+name: Build, What-If & Deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # für OIDC-Login gegen Azure
+  contents: read
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet build EntraMcpMvp.sln
+
+  whatif:
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: What-If (dev)
+        shell: pwsh
+        run: ./scripts/Invoke-BicepWhatIf.ps1 -Environment dev
+      - name: Report als PR-Kommentar posten
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const dir = 'reports';
+            const files = fs.readdirSync(dir).filter(f => f.startsWith('whatif-azure-'));
+            const latest = files.sort().reverse()[0];
+            const content = fs.readFileSync(path.join(dir, latest), 'utf8').slice(0, 60000);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: content
+            });
+
+  deploy-dev:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: What-If + Deploy (dev)
+        shell: pwsh
+        run: |
+          ./scripts/Invoke-BicepWhatIf.ps1 -Environment dev
+          az deployment group create `
+            --resource-group rg-entramcp-dev `
+            --template-file infra/main.bicep `
+            --parameters infra/parameters/main.dev.bicepparam
+
+  # deploy-staging / deploy-prod: analog, mit environment: staging / prod
+  # und "Required reviewers" in den GitHub Environment Settings konfiguriert,
+  # damit vor dem Deployment eine manuelle Freigabe nötig ist.
+  # GitHub-gehostete Runner (ubuntu-latest, windows-latest, macos-latest) haben
+  # PowerShell 7 (pwsh) vorinstalliert - "shell: pwsh" funktioniert auf allen dreien identisch.
