@@ -7,6 +7,44 @@ gegen dieselbe Umgebung laufen lassen (unterschiedliche State-Verwaltung → Kon
 Alle Skripte liegen als PowerShell 7 (`.ps1`) vor und laufen identisch unter macOS, Windows und Linux
 (`pwsh`). Fehlende CLIs (`az`, `gh`, `terraform`) installiert `Install-Prerequisites.ps1` automatisch.
 
+## Tenant/Subscription-Kontext (einmalig, vor allem anderen)
+
+Alle Skripte, die Azure-Ressourcen anlegen/ändern, rufen `scripts/Connect-Azure.ps1` automatisch als
+ersten Schritt auf. Dieses Skript liest Tenant und Subscription aus einer lokalen `.env`-Datei und
+stellt per `az login --tenant`/`az account set --subscription` sicher, dass garantiert gegen den
+richtigen Tenant/die richtige Subscription gearbeitet wird (idempotent, meldet nicht erneut an, wenn
+bereits korrekt eingeloggt).
+
+```powershell
+Copy-Item .env.example .env
+# .env öffnen und AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID eintragen (Werte z.B. aus dem Azure-Portal,
+# Übersichtsseite der Ziel-Subscription)
+```
+
+`.env` ist über `.gitignore` vom Commit ausgeschlossen (nur `.env.example` wird versioniert). In
+GitHub Actions (`CI=true`) überspringt `Connect-Azure.ps1` die `.env`-Prüfung automatisch, weil dort
+bereits per `azure/login@v2` (OIDC) angemeldet wird.
+
+## Kosten (Dev-Umgebung)
+
+Die Standardwerte für `dev` sind bewusst auf minimale Kosten getrimmt:
+
+| Ressource | Dev-Default | Kostenstatus |
+|---|---|---|
+| App Service Plan | `F1` (Free-Tier) | Kostenlos. Kein "Always On" – die App schläft nach ca. 20 Min. Inaktivität ein und braucht beim nächsten Aufruf etwas länger zum Starten (Cold Start). Für Dev/Test unproblematisch. |
+| Log Analytics Workspace | `PerGB2018` mit `dailyQuotaGb`/`daily_quota_gb = 1` | Hart auf 1 GB/Tag gedeckelt – bleibt bei MVP-Traffic i.d.R. im Cent-Bereich bzw. innerhalb des kostenlosen 5-GB/Monat-Kontingents (pro Azure-Billing-Account). Retention 30 Tage ist ebenfalls kostenlos. |
+| Application Insights | nutzt denselben Log Analytics Workspace | unterliegt demselben Tageslimit |
+| Key Vault | `standard` | Keine Grundgebühr, reine Pay-per-Operation-Abrechnung ohne Freikontingent – bei MVP-Nutzung praktisch vernachlässigbar (Cent-Bereich) |
+
+Für `staging`/`prod` sollten `appServiceSku`/`app_service_sku` (z. B. `B1`/`S1`, wegen "Always On" und
+SLA) und `logAnalyticsDailyQuotaGb`/`log_analytics_daily_quota_gb` (z. B. `-1` = kein Limit, wegen
+Beobachtbarkeit bei echtem Traffic) bewusst in der jeweiligen Parameter-/tfvars-Datei angepasst werden –
+siehe `infra/parameters/main.example.bicepparam.example` bzw. `terraform/terraform.example.tfvars.example`.
+
+**Wichtig:** Ein `dailyQuotaGb`-Limit bedeutet, dass Log Analytics ab Erreichen des Tageslimits **keine
+weiteren Logs mehr annimmt**, bis die UTC-Tagesgrenze erreicht ist – bei Diagnose-Bedarf mit viel Traffic
+das Limit temporär erhöhen oder auf `-1` setzen.
+
 ## Weg 1: Terraform (empfohlen)
 
 ### Einmalige Vorbereitung
@@ -31,11 +69,23 @@ pwsh ./scripts/Invoke-TerraformApply.ps1 -Environment dev
 ```
 
 Umgebungen werden über `terraform/terraform.<env>.tfvars` unterschieden (Beispiel: `terraform.dev.tfvars`
-liegt bereits im Repo, weitere nach Bedarf ergänzen).
+liegt bereits im Repo). Für weitere Umgebungen `terraform/terraform.example.tfvars.example` nach
+`terraform.<env>.tfvars` kopieren und anpassen.
 
 ## Weg 2: Bicep (Alternative)
 
-Parameterdateien liegen in `infra/parameters/`, eine pro Umgebung (`main.dev.bicepparam`, weitere nach Bedarf ergänzen, z. B. `main.staging.bicepparam`, `main.prod.bicepparam`).
+Parameterdateien liegen in `infra/parameters/`, eine pro Umgebung (`main.dev.bicepparam` liegt bereits
+im Repo). Für weitere Umgebungen `infra/parameters/main.example.bicepparam.example` nach
+`main.<env>.bicepparam` kopieren und anpassen (z. B. `main.staging.bicepparam`).
+
+**Entra-ID-Werte werden automatisch befüllt:** `tenantId`, `apiAppId`, `apiAppIdentifierUri` und
+`mcpAppId` stehen bewusst nicht in den `.bicepparam`-Dateien, sondern werden von
+`Invoke-BicepWhatIf.ps1`/`Invoke-BicepDeploy.ps1` zur Laufzeit aus
+`infra/entra-desired-state/<env>.json` (geschrieben von `Set-EntraIdApps.ps1`) als zusätzliche
+`--parameters`-Overrides übergeben. Dadurch setzt `infra/modules/appservice.bicep` auf beiden Web
+Apps automatisch `AzureAd__TenantId`/`AzureAd__ClientId`/`AzureAd__Audience` (api-server) bzw.
+`AzureAd__TenantId`/`AzureAd__ClientId`/`AzureAd__ClientSecret` (mcp-server, als Key-Vault-Reference)
+– analog zum Terraform-Weg, der das im selben State ohnehin automatisch macht.
 
 ### Ablauf (lokal)
 

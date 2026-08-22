@@ -1,0 +1,9 @@
+# Vorlage für eine neue Umgebung: Datei nach "terraform.<env>.tfvars" kopieren (z.B.
+# terraform.staging.tfvars) und Werte anpassen. tenant_id wird NICHT hier gesetzt - das
+# Terraform-Modul terraform/modules/entra-id liest den Tenant automatisch aus der aktiven
+# "az login"-Session (siehe scripts/Connect-Azure.ps1, das .env vorher auswertet).
+
+environment_name             = "<env>"
+location                     = "westeurope"
+app_service_sku              = "F1" # Free-Tier - kostenlos. Fuer staging/prod eher "B1"/"S1" erwaegen (Always On, SLA).
+log_analytics_daily_quota_gb = 1    # deckelt Log-Analytics-Kosten auf Cent-Beträge. Fuer prod ggf. -1 (kein Limit).

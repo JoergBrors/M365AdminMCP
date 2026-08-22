@@ -12,5 +12,11 @@ variable "location" {
 variable "app_service_sku" {
   description = "App Service Plan SKU"
   type        = string
-  default     = "B1"
+  default     = "F1" # Free-Tier - kostenlos, kein "Always On" (App schlaeft bei Inaktivitaet ein)
+}
+
+variable "log_analytics_daily_quota_gb" {
+  description = "Hartes Tageslimit für Log-Ingestion in GB, deckelt die Kosten auf Cent-Beträge. -1 = kein Limit."
+  type        = number
+  default     = 1
 }

@@ -61,10 +61,19 @@ if ($confirm -ne "y" -and $confirm -ne "Y") {
 
 Write-Host ""
 Write-Host "### Schritt 4/4: Deployment ###" -ForegroundColor Cyan
+$desiredStateFile = Join-Path $RootDir "infra/entra-desired-state/$Environment.json"
+$desired = Get-Content $desiredStateFile -Raw | ConvertFrom-Json
+$entraParamOverrides = @(
+    "tenantId=$($desired.tenantId)"
+    "apiAppId=$($desired.apiApp.appId)"
+    "apiAppIdentifierUri=api://$($desired.apiApp.appId)"
+    "mcpAppId=$($desired.mcpApp.appId)"
+)
 az deployment group create `
     --resource-group $ResourceGroupName `
     --template-file (Join-Path $RootDir "infra/main.bicep") `
     --parameters (Join-Path $RootDir "infra/parameters/main.$Environment.bicepparam") `
+    --parameters $entraParamOverrides `
     --query "properties.outputs"
 
 Write-Host ""

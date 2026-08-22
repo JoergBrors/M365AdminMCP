@@ -1,0 +1,48 @@
+{
+  "mcpApp": {
+    "redirectUris": [
+      "https://entramcp-dev-mcp.azurewebsites.net/signin-oidc"
+    ],
+    "signInAudience": "AzureADMyOrg",
+    "displayName": "mcp-server-dev",
+    "appId": "ef983644-a321-4eaf-a5de-9155e36b0e1e",
+    "graphAppOnlyPermissions": [
+      "ServiceHealth.Read.All",
+      "ServiceMessage.Read.All",
+      "Reports.Read.All"
+    ]
+  },
+  "apiApp": {
+    "delegatedScopes": [
+      "Tasks.ReadWrite"
+    ],
+    "signInAudience": "AzureADMyOrg",
+    "appRoles": [
+      "Tasks.ReadWrite.All"
+    ],
+    "displayName": "api-server-dev",
+    "appId": "577cfd9f-b5e5-4191-98db-139b47ff53e1"
+  },
+  "grants": {
+    "delegatedGrant": {
+      "to": "api-server-dev",
+      "scope": "Tasks.ReadWrite",
+      "from": "mcp-server-dev"
+    },
+    "appRoleAssignment": {
+      "to": "api-server-dev",
+      "role": "Tasks.ReadWrite.All",
+      "from": "mcp-server-dev"
+    },
+    "graphGrants": {
+      "roles": [
+        "ServiceHealth.Read.All",
+        "ServiceMessage.Read.All",
+        "Reports.Read.All"
+      ],
+      "to": "Microsoft Graph",
+      "from": "mcp-server-dev"
+    }
+  },
+  "tenantId": "db88f9b6-c89a-41a3-a21d-b61458e234ff"
+}

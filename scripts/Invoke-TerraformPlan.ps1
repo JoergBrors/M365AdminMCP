@@ -29,6 +29,8 @@ if (-not (Get-Command terraform -ErrorAction SilentlyContinue)) {
     throw "Terraform CLI nicht gefunden. Bitte zuerst './scripts/Install-Prerequisites.ps1' ausfuehren."
 }
 
+& (Join-Path $PSScriptRoot "Connect-Azure.ps1")
+
 Push-Location $TfDir
 try {
     Write-Host "==> terraform init ..." -ForegroundColor Cyan
@@ -38,7 +40,7 @@ try {
     terraform validate
 
     Write-Host "==> terraform plan ..." -ForegroundColor Cyan
-    terraform plan -var-file="terraform.$Environment.tfvars" -out=$PlanBin -input=false
+    terraform plan "-var-file=terraform.$Environment.tfvars" "-out=$PlanBin" -input=false
 
     $showOutput = terraform show -no-color $PlanBin
     $lines = @(

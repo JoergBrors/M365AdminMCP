@@ -14,6 +14,7 @@ resource "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.resource_group_name
   sku                 = "PerGB2018"
   retention_in_days   = 30
+  daily_quota_gb      = var.log_analytics_daily_quota_gb
   tags                = var.tags
 }
 
@@ -69,6 +70,12 @@ resource "azurerm_key_vault_secret" "mcp_app_id" {
 
 # --- App Service ---
 
+locals {
+  # F1 (Free) unterstuetzt kein "Always On" - die App schlaeft nach Inaktivitaet ein
+  # (fuer Dev/Test i.d.R. unproblematisch).
+  is_free_tier = var.app_service_sku == "F1"
+}
+
 resource "azurerm_service_plan" "this" {
   name                = "${var.name_prefix}-plan"
   location            = var.location
@@ -91,7 +98,7 @@ resource "azurerm_linux_web_app" "api" {
   }
 
   site_config {
-    always_on = true
+    always_on = !local.is_free_tier
     application_stack {
       dotnet_version = "8.0"
     }
@@ -119,7 +126,7 @@ resource "azurerm_linux_web_app" "mcp" {
   }
 
   site_config {
-    always_on = true
+    always_on = !local.is_free_tier
     application_stack {
       dotnet_version = "8.0"
     }
@@ -130,8 +137,8 @@ resource "azurerm_linux_web_app" "mcp" {
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.mcp_app_id
     # Key-Vault-Reference statt Klartext - Web App braucht dafür "Key Vault Secrets User" (s.u.)
-    "AzureAd__ClientSecret" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mcp_client_secret.versionless_id})"
-    "ApiServer__BaseUrl"    = "https://${azurerm_linux_web_app.api.default_hostname}"
+    "AzureAd__ClientSecret"  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mcp_client_secret.versionless_id})"
+    "ApiServer__BaseUrl"     = "https://${azurerm_linux_web_app.api.default_hostname}"
     "ASPNETCORE_ENVIRONMENT" = "Production"
   }
 }

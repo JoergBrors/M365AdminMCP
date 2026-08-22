@@ -6,7 +6,9 @@
 // könnten, sobald du bewusst mit der (experimentellen) Microsoft-Graph-Bicep-
 // Extension arbeiten willst. Voraussetzungen:
 //   - infra/bicepconfig.json: experimentalFeaturesEnabled.extensibility = true
-//   - Aktuelle Bicep-CLI-Version, die die "extension microsoftGraph" Direktive kennt
+//   - Aktuelle Bicep-CLI-Version (>= 0.36.1) + "extensions"-Alias "graphV1" in infra/bicepconfig.json
+//     (die alte eingebaute "extension microsoftGraph"-Direktive wurde von Microsoft im März 2025
+//     retired, siehe https://aka.ms/graphbicep/dynamictypes - Ersatz: dynamic types via MCR-Registry)
 //   - Deployment-Principal braucht Microsoft-Graph-Berechtigung Application.ReadWrite.All
 //     (NICHT nur Azure-RBAC!)
 //   - `az deployment ... what-if` deckt diese Ressourcen nur eingeschränkt ab,
@@ -17,13 +19,14 @@
 // prüfen.
 // ============================================================================
 
-extension microsoftGraph
+extension graphV1
 
 param apiAppDisplayName string = 'api-server'
 param mcpAppDisplayName string = 'mcp-server'
 param mcpRedirectUri string
 
 resource apiApp 'Microsoft.Graph/applications@v1.0' = {
+  uniqueName: apiAppDisplayName
   displayName: apiAppDisplayName
   signInAudience: 'AzureADMyOrg'
   api: {
@@ -58,6 +61,7 @@ resource apiSp 'Microsoft.Graph/servicePrincipals@v1.0' = {
 }
 
 resource mcpApp 'Microsoft.Graph/applications@v1.0' = {
+  uniqueName: mcpAppDisplayName
   displayName: mcpAppDisplayName
   signInAudience: 'AzureADMyOrg'
   web: {

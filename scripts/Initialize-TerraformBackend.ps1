@@ -25,6 +25,8 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw "Azure CLI (az) nicht gefunden. Bitte zuerst './scripts/Install-Prerequisites.ps1' ausfuehren."
 }
 
+& (Join-Path $PSScriptRoot "Connect-Azure.ps1")
+
 az group create --name $ResourceGroupName --location $Location | Out-Null
 
 az storage account create `

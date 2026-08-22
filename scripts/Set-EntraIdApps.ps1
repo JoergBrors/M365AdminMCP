@@ -40,6 +40,8 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw "Azure CLI (az) nicht gefunden. Bitte zuerst './scripts/Install-Prerequisites.ps1' ausfuehren."
 }
 
+& (Join-Path $PSScriptRoot "Connect-Azure.ps1")
+
 function Invoke-AzJson {
     param([Parameter(Mandatory)][string]$Arguments)
     $result = Invoke-Expression "az $Arguments -o json" 2>$null
@@ -107,6 +109,9 @@ $apiAppId = Invoke-AzTsv "ad app list --display-name `"$ApiAppName`" --query `"[
 if (-not $apiAppId) {
     Write-Host "  -> lege '$ApiAppName' an"
     $apiAppId = Invoke-AzTsv "ad app create --display-name `"$ApiAppName`" --sign-in-audience AzureADMyOrg --query appId"
+    if (-not $apiAppId) {
+        throw "az ad app create fuer '$ApiAppName' hat keine appId zurueckgegeben. Pruefe, ob 'az account show' einen gueltigen Login anzeigt und das Konto Application Administrator ist."
+    }
 }
 else {
     Write-Host "  -> '$ApiAppName' existiert bereits ($apiAppId), aktualisiere Konfiguration"
@@ -148,7 +153,7 @@ $apiPatchBody = @{
         )
     }
 }
-Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications(appId='$apiAppId')" -Body $apiPatchBody
+Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications/$($apiApp.id)" -Body $apiPatchBody
 
 if (-not (Invoke-AzTsv "ad sp show --id $apiAppId --query id")) {
     az ad sp create --id $apiAppId | Out-Null
@@ -162,6 +167,9 @@ $mcpRedirectUri = "https://entramcp-$Environment-mcp.azurewebsites.net/signin-oi
 if (-not $mcpAppId) {
     Write-Host "  -> lege '$McpAppName' an"
     $mcpAppId = Invoke-AzTsv "ad app create --display-name `"$McpAppName`" --sign-in-audience AzureADMyOrg --web-redirect-uris `"$mcpRedirectUri`" --query appId"
+    if (-not $mcpAppId) {
+        throw "az ad app create fuer '$McpAppName' hat keine appId zurueckgegeben. Pruefe, ob 'az account show' einen gueltigen Login anzeigt und das Konto Application Administrator ist."
+    }
 }
 else {
     Write-Host "  -> '$McpAppName' existiert bereits ($mcpAppId), aktualisiere Konfiguration"
@@ -197,7 +205,8 @@ $requiredResourceAccess = @(
         resourceAccess = $GraphAppOnlyPermissions | ForEach-Object { @{ id = $graphRoleIds[$_]; type = "Role" } }
     }
 )
-Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications(appId='$mcpAppId')" -Body @{ requiredResourceAccess = $requiredResourceAccess }
+$mcpAppObjectId = Invoke-AzTsv "ad app show --id $mcpAppId --query id"
+Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications/$mcpAppObjectId" -Body @{ requiredResourceAccess = $requiredResourceAccess }
 
 # --- App-Role-Assignment (Application Permission) api-server, erfordert Admin-Rechte ---
 Write-Host "  -> weise Application Permission '$AppRoleValue' zu (Admin Consent)"
@@ -248,7 +257,9 @@ else {
 
 # --- Soll-Zustand fuer den Config-Diff schreiben (ohne Secrets!) ---
 New-Item -ItemType Directory -Path $DesiredStateDir -Force | Out-Null
+$tenantId = Invoke-AzTsv "account show --query tenantId"
 $desiredState = @{
+    tenantId = $tenantId
     apiApp = @{
         appId           = $apiAppId
         displayName     = $ApiAppName

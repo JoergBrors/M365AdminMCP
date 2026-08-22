@@ -26,6 +26,7 @@ entra-mcp-mvp/
 │   ├── parameters/       # *.bicepparam pro Umgebung
 │   └── entra-desired-state/ # Soll-Zustand der App-Registrierungen (JSON) für den Bicep-Config-Diff
 ├── scripts/                                          # PowerShell 7 (.ps1) - macOS/Windows/Linux
+│   ├── Connect-Azure.ps1                             # liest .env, az login/account set auf Tenant+Subscription
 │   ├── Install-Prerequisites.ps1                     # installiert az, gh, terraform falls fehlend
 │   ├── New-GitHubRepo.ps1                            # Repo-Setup via GitHub CLI (gh)
 │   ├── Initialize-TerraformBackend.ps1, Invoke-TerraformPlan.ps1, Invoke-TerraformApply.ps1
@@ -36,6 +37,7 @@ entra-mcp-mvp/
 │   ├── ENTRA-ID-SETUP.md
 │   ├── DEPLOYMENT.md
 │   └── WHATIF-GUIDE.md
+├── .env.example                                      # Vorlage für .env (Tenant/Subscription, nicht committen)
 └── .github/workflows/deploy.yml
 ```
 
@@ -47,6 +49,7 @@ entra-mcp-mvp/
 - **GitHub CLI** (`gh`) – für das Repo-Setup; wird von `Install-Prerequisites.ps1` automatisch installiert, falls nicht vorhanden
 - **Terraform** ≥ 1.7 (empfohlener Weg) und/oder Bicep CLI ≥ 0.30 (Alternative, kommt mit aktuellem `az`)
 - Ein Entra-ID-Tenant, in dem du App-Registrierungen anlegen darfst
+- Lokale `.env` (aus `.env.example` kopiert) mit `AZURE_TENANT_ID` und `AZURE_SUBSCRIPTION_ID` – wird von `scripts/Connect-Azure.ps1` gelesen, das alle Deployment-Skripte automatisch als ersten Schritt aufrufen
 
 Fehlende CLIs (az, gh, terraform) lassen sich in einem Rutsch installieren:
 
@@ -60,8 +63,13 @@ pwsh ./scripts/Install-Prerequisites.ps1
 # 1) Repo lokal + auf GitHub anlegen (gh CLI wird bei Bedarf automatisch installiert)
 pwsh ./scripts/New-GitHubRepo.ps1 -Name entra-mcp-mvp -Visibility private
 
-az login
-az account set --subscription "<SUBSCRIPTION_ID>"
+# 2) Tenant/Subscription hinterlegen (einmalig)
+Copy-Item .env.example .env
+# .env öffnen und AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID eintragen
+
+# 3) Anmelden (alle scripts/*.ps1, die Azure-Ressourcen anlegen/ändern, rufen dies automatisch
+#    selbst als ersten Schritt auf - manueller Aufruf hier nur zur Kontrolle)
+pwsh ./scripts/Connect-Azure.ps1
 ```
 
 ### Terraform (empfohlen)

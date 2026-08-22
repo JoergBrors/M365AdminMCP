@@ -29,6 +29,8 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw "Azure CLI (az) nicht gefunden. Bitte zuerst './scripts/Install-Prerequisites.ps1' ausfuehren."
 }
 
+& (Join-Path $PSScriptRoot "Connect-Azure.ps1")
+
 Write-Host "==> Pruefe Bicep-Syntax (az bicep build) ..." -ForegroundColor Cyan
 $tmpJson = Join-Path ([System.IO.Path]::GetTempPath()) "main.json"
 az bicep build --file (Join-Path $RootDir "infra/main.bicep") --outfile $tmpJson
@@ -43,11 +45,24 @@ if ($LASTEXITCODE -ne 0) {
     az group create --name $ResourceGroupName --location $location | Out-Null
 }
 
+$DesiredStateFile = Join-Path $RootDir "infra/entra-desired-state/$Environment.json"
+if (-not (Test-Path $DesiredStateFile)) {
+    throw "Kein Entra-Soll-Zustand gefunden ($DesiredStateFile). Fuehre zuerst './scripts/Set-EntraIdApps.ps1 -Environment $Environment' aus."
+}
+$desired = Get-Content $DesiredStateFile -Raw | ConvertFrom-Json
+$entraParamOverrides = @(
+    "tenantId=$($desired.tenantId)"
+    "apiAppId=$($desired.apiApp.appId)"
+    "apiAppIdentifierUri=api://$($desired.apiApp.appId)"
+    "mcpAppId=$($desired.mcpApp.appId)"
+)
+
 Write-Host "==> Fuehre Azure what-if aus ..." -ForegroundColor Cyan
 $whatIfOutput = az deployment group what-if `
     --resource-group $ResourceGroupName `
     --template-file (Join-Path $RootDir "infra/main.bicep") `
     --parameters (Join-Path $RootDir "infra/parameters/main.$Environment.bicepparam") `
+    --parameters $entraParamOverrides `
     --result-format FullResourcePayloads `
     --no-pretty-print 2>&1
 

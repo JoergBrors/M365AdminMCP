@@ -43,7 +43,7 @@ resource "azuread_application" "api" {
       id                         = random_uuid.api_delegated_scope.result
       admin_consent_description  = "Allow the app to read/write tasks on behalf of the signed-in user"
       admin_consent_display_name = "Tasks.ReadWrite"
-      value                       = "Tasks.ReadWrite"
+      value                      = "Tasks.ReadWrite"
       type                       = "User"
       enabled                    = true
       user_consent_description   = "Allow the app to read/write your tasks"
@@ -116,8 +116,8 @@ resource "azuread_service_principal" "mcp" {
 }
 
 resource "azuread_application_password" "mcp" {
-  application_id = azuread_application.mcp.id
-  display_name   = "terraform-managed-secret-${var.environment_name}"
+  application_id    = azuread_application.mcp.id
+  display_name      = "terraform-managed-secret-${var.environment_name}"
   end_date_relative = "8760h" # 1 Jahr - für Produktion Zertifikat statt Secret erwägen
 }
 

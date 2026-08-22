@@ -2,6 +2,9 @@ param location string
 param namePrefix string
 param tags object = {}
 
+@description('Hartes Tageslimit für Log-Ingestion in GB, deckelt die Kosten (0.5 GB/Tag bleibt in Dev/Test i.d.R. im Cent-Bereich bzw. innerhalb des kostenlosen 5-GB/Monat-Kontingents). -1 = kein Limit.')
+param dailyQuotaGb int = 1
+
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: '${namePrefix}-law'
   location: location
@@ -11,6 +14,9 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 30
+    workspaceCapping: {
+      dailyQuotaGb: dailyQuotaGb
+    }
   }
 }
 

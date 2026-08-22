@@ -30,7 +30,7 @@ Write-Host "### Schritt 1/3: Terraform Plan (Pflicht) ###" -ForegroundColor Cyan
 if (-not (Test-Path $LatestPlanPointer)) {
     throw "Kein Plan gefunden - Abbruch."
 }
-$planBin = Get-Content $LatestPlanPointer -Raw
+$planBin = (Get-Content $LatestPlanPointer -Raw).Trim()
 
 Push-Location $TfDir
 try {
@@ -58,3 +58,7 @@ try {
 finally {
     Pop-Location
 }
+
+Write-Host ""
+Write-Host "### Lokale Entwicklungs-Konfiguration aktualisieren ###" -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "Export-TerraformLocalSettings.ps1") -Environment $Environment
