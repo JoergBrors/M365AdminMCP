@@ -1,6 +1,7 @@
 using ApiServer.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ApiServer.Controllers;
 
@@ -15,7 +16,7 @@ public class TasksController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        var isAppOnly = User.HasClaim(c => c.Type == "roles");
+        var isAppOnly = User.Claims.Any(c => c.Type == "roles" || c.Type == ClaimTypes.Role);
         var callerType = isAppOnly ? "app-only" : "delegated";
         var caller = isAppOnly
             ? User.FindFirst("azp")?.Value ?? "unbekannte-app"

@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using System.Net.Http.Headers;
 using McpServer.Auth;
+using McpServer.Services;
 using ModelContextProtocol.Server;
 
 namespace McpServer.Tools;
@@ -14,20 +14,19 @@ public class TasksTool
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ApiTokenService _tokenService;
-    private readonly IConfiguration _configuration;
+    private readonly ApiServerClient _apiServerClient;
 
-    public TasksTool(IHttpClientFactory httpClientFactory, ApiTokenService tokenService, IConfiguration configuration)
+    public TasksTool(IHttpClientFactory httpClientFactory, ApiTokenService tokenService, ApiServerClient apiServerClient)
     {
         _httpClientFactory = httpClientFactory;
         _tokenService = tokenService;
-        _configuration = configuration;
+        _apiServerClient = apiServerClient;
     }
 
     [McpServerTool, Description("Liest die Task-Liste vom API Server (App-only Zugriff).")]
     public async Task<string> GetTasksAppOnly()
     {
-        var token = await _tokenService.GetAppOnlyTokenAsync();
-        return await CallApiAsync(token);
+        return await _apiServerClient.GetAsync("/api/tasks");
     }
 
     [McpServerTool, Description("Liest die Task-Liste vom API Server im Namen des aktuell angemeldeten Nutzers (delegated, On-Behalf-Of).")]
@@ -36,20 +35,6 @@ public class TasksTool
         string incomingUserAccessToken)
     {
         var token = await _tokenService.GetOnBehalfOfTokenAsync(incomingUserAccessToken);
-        return await CallApiAsync(token);
-    }
-
-    private async Task<string> CallApiAsync(string bearerToken)
-    {
-        var apiBaseUrl = _configuration["ApiServer:BaseUrl"]
-            ?? throw new InvalidOperationException("ApiServer:BaseUrl ist nicht konfiguriert.");
-
-        var client = _httpClientFactory.CreateClient();
-        client.BaseAddress = new Uri(apiBaseUrl);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-
-        var response = await client.GetAsync("/api/tasks");
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsStringAsync();
+        return await _apiServerClient.GetAsync("/api/tasks", token);
     }
 }

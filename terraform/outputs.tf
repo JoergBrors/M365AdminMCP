@@ -18,6 +18,11 @@ output "api_app_identifier_uri" {
   value = module.entra_id.api_app_identifier_uri
 }
 
+output "api_app_client_secret" {
+  value     = module.entra_id.api_app_client_secret
+  sensitive = true
+}
+
 output "mcp_app_id" {
   value = module.entra_id.mcp_app_id
 }

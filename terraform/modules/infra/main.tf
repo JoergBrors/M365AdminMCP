@@ -1,5 +1,15 @@
 data "azurerm_client_config" "current" {}
 
+data "azuread_application_published_app_ids" "well_known" {}
+
+data "azuread_service_principal" "msgraph" {
+  client_id = data.azuread_application_published_app_ids.well_known.result["MicrosoftGraph"]
+}
+
+data "azuread_service_principal" "api" {
+  client_id = var.api_app_id
+}
+
 resource "random_string" "kv_suffix" {
   length  = 4
   special = false
@@ -50,6 +60,13 @@ resource "azurerm_role_assignment" "deployer_kv_admin" {
 resource "azurerm_key_vault_secret" "mcp_client_secret" {
   name         = "mcp-server-client-secret"
   value        = var.mcp_app_client_secret
+  key_vault_id = azurerm_key_vault.this.id
+  depends_on   = [azurerm_role_assignment.deployer_kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "api_client_secret" {
+  name         = "api-server-client-secret"
+  value        = var.api_app_client_secret
   key_vault_id = azurerm_key_vault.this.id
   depends_on   = [azurerm_role_assignment.deployer_kv_admin]
 }
@@ -109,6 +126,8 @@ resource "azurerm_linux_web_app" "api" {
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.api_app_id
     "AzureAd__Audience"                     = var.api_app_identifier_uri
+    "AzureAd__ClientSecret"                 = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.api_client_secret.versionless_id})"
+    "GraphAuth__UseManagedIdentity"         = "true"
     "SwaggerOAuth__ClientId"                = var.swagger_client_app_id
     "SwaggerOAuth__Scope"                   = "${var.api_app_identifier_uri}/Tasks.ReadWrite"
     "ASPNETCORE_ENVIRONMENT"                = "Production"
@@ -139,6 +158,7 @@ resource "azurerm_linux_web_app" "mcp" {
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.mcp_app_id
     "AzureAd__ApiAppIdUri"                  = var.api_app_identifier_uri
+    "AzureAd__UseManagedIdentity"           = "true"
     # Key-Vault-Reference statt Klartext - Web App braucht dafür "Key Vault Secrets User" (s.u.)
     "AzureAd__ClientSecret"  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mcp_client_secret.versionless_id})"
     "ApiServer__BaseUrl"     = "https://${azurerm_linux_web_app.api.default_hostname}"
@@ -156,4 +176,28 @@ resource "azurerm_role_assignment" "api_kv_secrets_user" {
   scope                = azurerm_key_vault.this.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_linux_web_app.api.identity[0].principal_id
+}
+
+resource "azuread_app_role_assignment" "mcp_managed_identity_to_api_task_readwrite" {
+  app_role_id         = data.azuread_service_principal.api.app_role_ids["Tasks.ReadWrite.All"]
+  principal_object_id = azurerm_linux_web_app.mcp.identity[0].principal_id
+  resource_object_id  = data.azuread_service_principal.api.object_id
+}
+
+resource "azuread_app_role_assignment" "api_managed_identity_to_graph_service_health" {
+  app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["ServiceHealth.Read.All"]
+  principal_object_id = azurerm_linux_web_app.api.identity[0].principal_id
+  resource_object_id  = data.azuread_service_principal.msgraph.object_id
+}
+
+resource "azuread_app_role_assignment" "api_managed_identity_to_graph_service_message" {
+  app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["ServiceMessage.Read.All"]
+  principal_object_id = azurerm_linux_web_app.api.identity[0].principal_id
+  resource_object_id  = data.azuread_service_principal.msgraph.object_id
+}
+
+resource "azuread_app_role_assignment" "api_managed_identity_to_graph_reports" {
+  app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["Reports.Read.All"]
+  principal_object_id = azurerm_linux_web_app.api.identity[0].principal_id
+  resource_object_id  = data.azuread_service_principal.msgraph.object_id
 }

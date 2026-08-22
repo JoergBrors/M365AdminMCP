@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <!-- Offizielles MCP C# SDK (Stand jetzt Preview) mit ASP.NET Core Hosting (HTTP/SSE Transport) -->
+    <PackageReference Include="Azure.Identity" Version="1.11.4" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.2.0-preview.1" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.66.1" />
     <PackageReference Include="Microsoft.Identity.Web" Version="3.3.1" />

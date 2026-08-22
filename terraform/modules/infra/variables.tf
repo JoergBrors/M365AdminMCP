@@ -37,6 +37,11 @@ variable "api_app_identifier_uri" {
   type = string
 }
 
+variable "api_app_client_secret" {
+  type      = string
+  sensitive = true
+}
+
 variable "swagger_client_app_id" {
   type = string
 }

@@ -85,6 +85,16 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($mcpClientSecret)) {
     throw "MCP Client Secret konnte nicht aus Key Vault '$keyVaultName' gelesen werden."
 }
 
+Write-Host "==> Lese API Client Secret aus Key Vault '$keyVaultName' ..." -ForegroundColor Cyan
+$apiClientSecret = az keyvault secret show `
+    --vault-name $keyVaultName `
+    --name "api-server-client-secret" `
+    --query value `
+    -o tsv
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($apiClientSecret)) {
+    throw "API Client Secret konnte nicht aus Key Vault '$keyVaultName' gelesen werden."
+}
+
 function Update-DotEnvFile {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -142,7 +152,11 @@ $apiSettings = [ordered]@{
         "Instance" = "https://login.microsoftonline.com/"
         "TenantId" = $tenantId
         "ClientId" = $apiAppId
+        "ClientSecret" = $apiClientSecret
         "Audience" = $apiAppIdUri
+    }
+    "GraphAuth" = [ordered]@{
+        "UseManagedIdentity" = $false
     }
     "SwaggerOAuth" = [ordered]@{
         "ClientId" = $swaggerClientAppId
@@ -162,6 +176,7 @@ $mcpSettings = [ordered]@{
         "ClientId" = $mcpAppId
         "ClientSecret" = $mcpClientSecret
         "ApiAppIdUri" = $apiAppIdUri
+        "UseManagedIdentity" = $false
     }
     "ApiServer" = [ordered]@{
         "BaseUrl" = $apiBaseUrl

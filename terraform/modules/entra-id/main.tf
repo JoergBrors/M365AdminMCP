@@ -7,17 +7,8 @@
 # diesem Repo, sobald Terraform als IaC-Tool verwendet wird.
 #
 # Legt an:
-#   - api-server:  eigene API mit App Role (App-only) + Delegated Scope
-#   - mcp-server:  Client-App mit
-#       a) Application Permission auf api-server (App-only)
-#       b) Delegated Permission auf api-server (On-Behalf-Of)
-#       c) Application Permissions auf Microsoft Graph für
-#          Office 365 Service Health (Status), Message Center (Nachrichten)
-#          und Usage Reports (Adoption):
-#            - ServiceHealth.Read.All
-#            - ServiceMessage.Read.All
-#            - Reports.Read.All
-#          (alle drei erfordern Admin Consent, siehe app_role_assignment unten)
+#   - api-server:  zentrale API mit App Role, Delegated Scope und Microsoft-Graph-App-Permissions
+#   - mcp-server:  Client-App mit Application Permission auf api-server
 # ============================================================================
 
 data "azuread_client_config" "current" {}
@@ -63,6 +54,25 @@ resource "azuread_application" "api" {
     value                = "Tasks.ReadWrite.All"
     enabled              = true
   }
+
+  # Microsoft Graph: Office 365 Status, Message Center, Adoption/Usage Reports (alle App-only).
+  # Diese Berechtigungen liegen bewusst auf der API, damit MCP keine Graph-Tokens mehr anfordert.
+  required_resource_access {
+    resource_app_id = data.azuread_service_principal.msgraph.client_id
+
+    resource_access {
+      id   = data.azuread_service_principal.msgraph.app_role_ids["ServiceHealth.Read.All"]
+      type = "Role"
+    }
+    resource_access {
+      id   = data.azuread_service_principal.msgraph.app_role_ids["ServiceMessage.Read.All"]
+      type = "Role"
+    }
+    resource_access {
+      id   = data.azuread_service_principal.msgraph.app_role_ids["Reports.Read.All"]
+      type = "Role"
+    }
+  }
 }
 
 resource "random_uuid" "api_delegated_scope" {}
@@ -70,6 +80,12 @@ resource "random_uuid" "api_app_role" {}
 
 resource "azuread_service_principal" "api" {
   client_id = azuread_application.api.client_id
+}
+
+resource "azuread_application_password" "api" {
+  application_id    = azuread_application.api.id
+  display_name      = "terraform-managed-local-debug-secret-${var.environment_name}"
+  end_date_relative = "8760h" # lokal/debug fallback; Azure nutzt bevorzugt Managed Identity
 }
 
 # --- swagger-client (Browser/SPAs fuer lokale Swagger UI) ---
@@ -120,23 +136,6 @@ resource "azuread_application" "mcp" {
     }
   }
 
-  # Microsoft Graph: Office 365 Status, Message Center, Adoption/Usage Reports (alle App-only)
-  required_resource_access {
-    resource_app_id = data.azuread_service_principal.msgraph.client_id
-
-    resource_access {
-      id   = data.azuread_service_principal.msgraph.app_role_ids["ServiceHealth.Read.All"]
-      type = "Role"
-    }
-    resource_access {
-      id   = data.azuread_service_principal.msgraph.app_role_ids["ServiceMessage.Read.All"]
-      type = "Role"
-    }
-    resource_access {
-      id   = data.azuread_service_principal.msgraph.app_role_ids["Reports.Read.All"]
-      type = "Role"
-    }
-  }
 }
 
 resource "azuread_service_principal" "mcp" {
@@ -157,21 +156,21 @@ resource "azuread_app_role_assignment" "mcp_to_api_task_readwrite" {
   resource_object_id  = azuread_service_principal.api.object_id
 }
 
-resource "azuread_app_role_assignment" "mcp_to_graph_service_health" {
+resource "azuread_app_role_assignment" "api_to_graph_service_health" {
   app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["ServiceHealth.Read.All"]
-  principal_object_id = azuread_service_principal.mcp.object_id
+  principal_object_id = azuread_service_principal.api.object_id
   resource_object_id  = data.azuread_service_principal.msgraph.object_id
 }
 
-resource "azuread_app_role_assignment" "mcp_to_graph_service_message" {
+resource "azuread_app_role_assignment" "api_to_graph_service_message" {
   app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["ServiceMessage.Read.All"]
-  principal_object_id = azuread_service_principal.mcp.object_id
+  principal_object_id = azuread_service_principal.api.object_id
   resource_object_id  = data.azuread_service_principal.msgraph.object_id
 }
 
-resource "azuread_app_role_assignment" "mcp_to_graph_reports" {
+resource "azuread_app_role_assignment" "api_to_graph_reports" {
   app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["Reports.Read.All"]
-  principal_object_id = azuread_service_principal.mcp.object_id
+  principal_object_id = azuread_service_principal.api.object_id
   resource_object_id  = data.azuread_service_principal.msgraph.object_id
 }
 
