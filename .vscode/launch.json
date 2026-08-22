@@ -48,7 +48,8 @@
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_URLS": "http://localhost:5143;https://localhost:7143",
-        "ApiServer__BaseUrl": "http://localhost:5043"
+        "ApiServer__BaseUrl": "http://localhost:5043",
+        "McpAuth__ExternalBaseUrl": "https://mydevice-mcp.brors.date"
       }
     }
   ]

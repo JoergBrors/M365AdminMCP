@@ -85,6 +85,24 @@ resource "azurerm_key_vault_secret" "mcp_app_id" {
   depends_on   = [azurerm_role_assignment.deployer_kv_admin]
 }
 
+resource "azurerm_key_vault_secret" "mcp_oauth_client_id" {
+  for_each = var.mcp_oauth_client_ids
+
+  name         = "${each.key}-mcp-client-id"
+  value        = each.value
+  key_vault_id = azurerm_key_vault.this.id
+  depends_on   = [azurerm_role_assignment.deployer_kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "mcp_oauth_client_secret" {
+  for_each = var.mcp_oauth_client_ids
+
+  name         = "${each.key}-mcp-client-secret"
+  value        = var.mcp_oauth_client_secrets[each.key]
+  key_vault_id = azurerm_key_vault.this.id
+  depends_on   = [azurerm_role_assignment.deployer_kv_admin]
+}
+
 # --- App Service ---
 
 locals {
@@ -155,10 +173,15 @@ resource "azurerm_linux_web_app" "mcp" {
 
   app_settings = {
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string
+    "AzureAd__Instance"                     = "https://login.microsoftonline.com/"
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.mcp_app_id
+    "AzureAd__Audience"                     = var.mcp_app_identifier_uri
     "AzureAd__ApiAppIdUri"                  = var.api_app_identifier_uri
     "AzureAd__UseManagedIdentity"           = "true"
+    "McpAuth__ExternalBaseUrl"              = "https://${var.name_prefix}-mcp.azurewebsites.net"
+    "McpAuth__Scope"                        = "${var.mcp_app_identifier_uri}/Mcp.Access"
+    "McpAuth__RequireAuthentication"        = "true"
     # Key-Vault-Reference statt Klartext - Web App braucht dafür "Key Vault Secrets User" (s.u.)
     "AzureAd__ClientSecret"  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mcp_client_secret.versionless_id})"
     "ApiServer__BaseUrl"     = "https://${azurerm_linux_web_app.api.default_hostname}"

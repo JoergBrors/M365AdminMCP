@@ -50,7 +50,22 @@ variable "mcp_app_id" {
   type = string
 }
 
+variable "mcp_app_identifier_uri" {
+  type = string
+}
+
 variable "mcp_app_client_secret" {
   type      = string
   sensitive = true
+}
+
+variable "mcp_oauth_client_ids" {
+  type    = map(string)
+  default = {}
+}
+
+variable "mcp_oauth_client_secrets" {
+  type      = map(string)
+  sensitive = true
+  default   = {}
 }

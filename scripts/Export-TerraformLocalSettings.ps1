@@ -19,7 +19,8 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string]$Environment
+    [Parameter(Mandatory)][string]$Environment,
+    [string]$LocalMcpExternalBaseUrl = "https://mydevice-mcp.brors.date"
 )
 
 $ErrorActionPreference = "Stop"
@@ -66,7 +67,10 @@ $apiAppIdUri = Get-TerraformOutputValue $outputs "api_app_identifier_uri"
 $keyVaultName = Get-TerraformOutputValue $outputs "key_vault_name"
 $mcpAppHostname = Get-TerraformOutputValue $outputs "mcp_app_hostname"
 $mcpAppId = Get-TerraformOutputValue $outputs "mcp_app_id"
+$mcpAppIdUri = Get-TerraformOutputValue $outputs "mcp_app_identifier_uri"
 $swaggerClientAppId = Get-TerraformOutputValue $outputs "swagger_client_app_id"
+$mcpOauthClientIdsProperty = $outputs.PSObject.Properties["mcp_oauth_client_ids"]
+$mcpOauthClientIds = if ($mcpOauthClientIdsProperty) { $mcpOauthClientIdsProperty.Value.value } else { $null }
 
 $account = az account show -o json | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or -not $account) {
@@ -136,6 +140,10 @@ Update-DotEnvFile -Path $EnvFile -Values ([ordered]@{
     "API_APP_ID_URI" = $apiAppIdUri
     "MCP_APP_HOSTNAME" = $mcpAppHostname
     "MCP_APP_ID" = $mcpAppId
+    "MCP_APP_ID_URI" = $mcpAppIdUri
+    "CHATGPT_MCP_CLIENT_ID" = if ($mcpOauthClientIds) { [string]$mcpOauthClientIds.chatgpt } else { "" }
+    "CLAUDE_MCP_CLIENT_ID" = if ($mcpOauthClientIds) { [string]$mcpOauthClientIds.claude } else { "" }
+    "COPILOT_MCP_CLIENT_ID" = if ($mcpOauthClientIds) { [string]$mcpOauthClientIds.copilot } else { "" }
     "SWAGGER_CLIENT_APP_ID" = $swaggerClientAppId
     "KEY_VAULT_NAME" = $keyVaultName
     "API_SERVER_BASE_URL" = $apiBaseUrl
@@ -172,11 +180,19 @@ $mcpSettings = [ordered]@{
         }
     }
     "AzureAd" = [ordered]@{
+        "Instance" = "https://login.microsoftonline.com/"
         "TenantId" = $tenantId
         "ClientId" = $mcpAppId
         "ClientSecret" = $mcpClientSecret
+        "Audience" = $mcpAppIdUri
         "ApiAppIdUri" = $apiAppIdUri
         "UseManagedIdentity" = $false
+    }
+    "McpAuth" = [ordered]@{
+        "ExternalBaseUrl" = $LocalMcpExternalBaseUrl.TrimEnd("/")
+        "Scope" = "$mcpAppIdUri/Mcp.Access"
+        "ApiKey" = ""
+        "RequireAuthentication" = $true
     }
     "ApiServer" = [ordered]@{
         "BaseUrl" = $apiBaseUrl

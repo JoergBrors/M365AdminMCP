@@ -27,6 +27,19 @@ output "mcp_app_id" {
   value = module.entra_id.mcp_app_id
 }
 
+output "mcp_app_identifier_uri" {
+  value = module.entra_id.mcp_app_identifier_uri
+}
+
 output "swagger_client_app_id" {
   value = module.entra_id.swagger_client_app_id
+}
+
+output "mcp_oauth_client_ids" {
+  value = module.entra_id.mcp_oauth_client_ids
+}
+
+output "mcp_oauth_client_secrets" {
+  value     = module.entra_id.mcp_oauth_client_secrets
+  sensitive = true
 }

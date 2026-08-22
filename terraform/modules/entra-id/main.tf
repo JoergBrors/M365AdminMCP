@@ -118,8 +118,29 @@ resource "azuread_application" "mcp" {
   display_name     = "mcp-server-${var.environment_name}"
   sign_in_audience = "AzureADMyOrg"
 
+  identifier_uris = ["api://mcp-server-${var.environment_name}"]
+
   web {
-    redirect_uris = [var.mcp_redirect_uri]
+    redirect_uris = coalesce(var.mcp_redirect_uris, [var.mcp_redirect_uri])
+    implicit_grant {
+      access_token_issuance_enabled = false
+      id_token_issuance_enabled     = true
+    }
+  }
+
+  api {
+    requested_access_token_version = 2
+
+    oauth2_permission_scope {
+      id                         = random_uuid.mcp_access_scope.result
+      admin_consent_description  = "Allow ChatGPT and other MCP clients to access the MCP server on behalf of the signed-in user"
+      admin_consent_display_name = "Access MCP server"
+      value                      = "Mcp.Access"
+      type                       = "User"
+      enabled                    = true
+      user_consent_description   = "Allow this client to access the MCP server on your behalf"
+      user_consent_display_name  = "Access MCP server"
+    }
   }
 
   # Application Permission (App-only) + Delegated Scope auf api-server
@@ -138,6 +159,8 @@ resource "azuread_application" "mcp" {
 
 }
 
+resource "random_uuid" "mcp_access_scope" {}
+
 resource "azuread_service_principal" "mcp" {
   client_id = azuread_application.mcp.client_id
 }
@@ -146,6 +169,63 @@ resource "azuread_application_password" "mcp" {
   application_id    = azuread_application.mcp.id
   display_name      = "terraform-managed-secret-${var.environment_name}"
   end_date_relative = "8760h" # 1 Jahr - für Produktion Zertifikat statt Secret erwägen
+}
+
+# --- externe MCP OAuth Clients (ChatGPT / Claude / Copilot Studio) ---
+
+locals {
+  mcp_oauth_clients = {
+    chatgpt = {
+      display_name  = "chatgpt-mcp-client-${var.environment_name}"
+      redirect_uris = var.chatgpt_mcp_redirect_uris
+    }
+    claude = {
+      display_name  = "claude-mcp-client-${var.environment_name}"
+      redirect_uris = var.claude_mcp_redirect_uris
+    }
+    copilot = {
+      display_name  = "copilot-mcp-client-${var.environment_name}"
+      redirect_uris = var.copilot_mcp_redirect_uris
+    }
+  }
+}
+
+resource "azuread_application" "mcp_oauth_client" {
+  for_each = local.mcp_oauth_clients
+
+  display_name     = each.value.display_name
+  sign_in_audience = "AzureADMyOrg"
+
+  web {
+    redirect_uris = each.value.redirect_uris
+    implicit_grant {
+      access_token_issuance_enabled = false
+      id_token_issuance_enabled     = true
+    }
+  }
+
+  required_resource_access {
+    resource_app_id = azuread_application.mcp.client_id
+
+    resource_access {
+      id   = azuread_application.mcp.oauth2_permission_scope_ids["Mcp.Access"]
+      type = "Scope"
+    }
+  }
+}
+
+resource "azuread_service_principal" "mcp_oauth_client" {
+  for_each = azuread_application.mcp_oauth_client
+
+  client_id = each.value.client_id
+}
+
+resource "azuread_application_password" "mcp_oauth_client" {
+  for_each = azuread_application.mcp_oauth_client
+
+  application_id    = each.value.id
+  display_name      = "terraform-managed-secret-${var.environment_name}"
+  end_date_relative = "8760h" # 1 Jahr - fuer externe MCP OAuth Clients
 }
 
 # --- Admin Consent / App Role Assignments (App-only) ---
@@ -186,4 +266,12 @@ resource "azuread_service_principal_delegated_permission_grant" "swagger_delegat
   service_principal_object_id          = azuread_service_principal.swagger.object_id
   resource_service_principal_object_id = azuread_service_principal.api.object_id
   claim_values                         = ["Tasks.ReadWrite"]
+}
+
+resource "azuread_service_principal_delegated_permission_grant" "mcp_oauth_client_delegated_to_mcp" {
+  for_each = azuread_service_principal.mcp_oauth_client
+
+  service_principal_object_id          = each.value.object_id
+  resource_service_principal_object_id = azuread_service_principal.mcp.object_id
+  claim_values                         = ["Mcp.Access"]
 }

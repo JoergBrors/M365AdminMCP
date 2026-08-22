@@ -105,6 +105,8 @@ function Get-TerraformOutputValue {
 
 $apiAppHostname = Get-TerraformOutputValue $outputs "api_app_hostname"
 $mcpAppHostname = Get-TerraformOutputValue $outputs "mcp_app_hostname"
+$mcpOauthClientIdsProperty = $outputs.PSObject.Properties["mcp_oauth_client_ids"]
+$mcpOauthClientIds = if ($mcpOauthClientIdsProperty) { $mcpOauthClientIdsProperty.Value.value } else { $null }
 $apiAppName = $apiAppHostname -replace "\.azurewebsites\.net$", ""
 $mcpAppName = $mcpAppHostname -replace "\.azurewebsites\.net$", ""
 
@@ -118,6 +120,10 @@ $variables = [ordered]@{
     "API_APP_IDENTIFIER_URI" = Get-TerraformOutputValue $outputs "api_app_identifier_uri"
     "SWAGGER_CLIENT_APP_ID" = Get-TerraformOutputValue $outputs "swagger_client_app_id"
     "MCP_APP_ID" = Get-TerraformOutputValue $outputs "mcp_app_id"
+    "MCP_APP_IDENTIFIER_URI" = Get-TerraformOutputValue $outputs "mcp_app_identifier_uri"
+    "CHATGPT_MCP_CLIENT_ID" = if ($mcpOauthClientIds) { [string]$mcpOauthClientIds.chatgpt } else { "" }
+    "CLAUDE_MCP_CLIENT_ID" = if ($mcpOauthClientIds) { [string]$mcpOauthClientIds.claude } else { "" }
+    "COPILOT_MCP_CLIENT_ID" = if ($mcpOauthClientIds) { [string]$mcpOauthClientIds.copilot } else { "" }
     "KEY_VAULT_NAME" = Get-TerraformOutputValue $outputs "key_vault_name"
 }
 

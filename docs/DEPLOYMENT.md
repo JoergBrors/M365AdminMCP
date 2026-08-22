@@ -72,6 +72,71 @@ Umgebungen werden über `terraform/terraform.<env>.tfvars` unterschieden (Beispi
 liegt bereits im Repo). Für weitere Umgebungen `terraform/terraform.example.tfvars.example` nach
 `terraform.<env>.tfvars` kopieren und anpassen.
 
+### MCP OAuth Clients
+
+Der MCP Server ist als OAuth Resource Server geschützt. Für ChatGPT, Claude und Copilot Studio muss die öffentliche MCP-URL
+verwendet werden, nicht localhost:
+
+```text
+https://entramcp-<env>-mcp.azurewebsites.net
+```
+
+Der Server veröffentlicht die MCP OAuth Protected Resource Metadata unter:
+
+```text
+https://entramcp-<env>-mcp.azurewebsites.net/.well-known/oauth-protected-resource
+```
+
+Der benötigte Scope lautet:
+
+```text
+api://mcp-server-<env>/Mcp.Access
+```
+
+Wenn ChatGPT beim Erstellen des MCP Connectors eine OAuth Redirect URI/Callback URI anzeigt, muss diese
+in `terraform/terraform.<env>.tfvars` ergänzt werden:
+
+```hcl
+chatgpt_mcp_redirect_uris = [
+  "https://<chatgpt-callback-uri>"
+]
+
+claude_mcp_redirect_uris = [
+  "https://<claude-callback-uri>"
+]
+
+copilot_mcp_redirect_uris = [
+  "https://<copilot-studio-callback-uri>"
+]
+```
+
+Terraform erstellt getrennte OAuth Client Apps:
+
+| Client | Terraform Output / `.env` | Key Vault Secret |
+|---|---|---|
+| ChatGPT | `CHATGPT_MCP_CLIENT_ID` | `chatgpt-mcp-client-secret` |
+| Claude | `CLAUDE_MCP_CLIENT_ID` | `claude-mcp-client-secret` |
+| Copilot Studio | `COPILOT_MCP_CLIENT_ID` | `copilot-mcp-client-secret` |
+
+Alle drei Clients verwenden denselben Scope:
+
+```text
+api://mcp-server-<env>/Mcp.Access offline_access openid profile
+```
+
+Danach:
+
+```powershell
+pwsh ./scripts/Invoke-TerraformPlan.ps1 -Environment dev
+pwsh ./scripts/Invoke-TerraformApply.ps1 -Environment dev
+pwsh ./scripts/Export-TerraformLocalSettings.ps1 -Environment dev
+pwsh ./scripts/Set-GitHubActionsSettings.ps1 -Environment dev
+```
+
+OAuth bleibt der bevorzugte Weg. Optional kann für einfache Test-Clients ein statischer Header
+`X-MCP-API-Key` verwendet werden, wenn `McpAuth__ApiKey` als App Setting oder lokal als User Secret
+gesetzt ist. Ohne gesetzten Key ist diese Alternative deaktiviert.
+
 ## Weg 2: Bicep (Alternative)
 
 Parameterdateien liegen in `infra/parameters/`, eine pro Umgebung (`main.dev.bicepparam` liegt bereits

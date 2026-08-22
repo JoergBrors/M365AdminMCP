@@ -15,12 +15,29 @@ output "mcp_app_id" {
   value = azuread_application.mcp.client_id
 }
 
+output "mcp_app_identifier_uri" {
+  value = one(azuread_application.mcp.identifier_uris)
+}
+
 output "swagger_client_app_id" {
   value = azuread_application.swagger.client_id
 }
 
 output "mcp_app_client_secret" {
   value     = azuread_application_password.mcp.value
+  sensitive = true
+}
+
+output "mcp_oauth_client_ids" {
+  value = {
+    for key, app in azuread_application.mcp_oauth_client : key => app.client_id
+  }
+}
+
+output "mcp_oauth_client_secrets" {
+  value = {
+    for key, secret in azuread_application_password.mcp_oauth_client : key => secret.value
+  }
   sensitive = true
 }
 

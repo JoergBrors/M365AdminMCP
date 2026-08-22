@@ -20,3 +20,21 @@ variable "log_analytics_daily_quota_gb" {
   type        = number
   default     = 1
 }
+
+variable "chatgpt_mcp_redirect_uris" {
+  description = "Zusätzliche OAuth Redirect URIs, die ChatGPT beim Einrichten des MCP Connectors vorgibt."
+  type        = list(string)
+  default     = []
+}
+
+variable "claude_mcp_redirect_uris" {
+  description = "Zusätzliche OAuth Redirect URIs, die Claude beim Einrichten des MCP Connectors vorgibt."
+  type        = list(string)
+  default     = []
+}
+
+variable "copilot_mcp_redirect_uris" {
+  description = "Zusätzliche OAuth Redirect URIs, die Copilot Studio/Power Platform beim Einrichten des MCP Connectors vorgibt."
+  type        = list(string)
+  default     = []
+}

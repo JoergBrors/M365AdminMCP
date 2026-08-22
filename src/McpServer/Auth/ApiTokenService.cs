@@ -10,6 +10,7 @@ public class AzureAdOptions
     public string TenantId { get; set; } = string.Empty;
     public string ClientId { get; set; } = string.Empty;
     public string ClientSecret { get; set; } = string.Empty;
+    public string Audience { get; set; } = string.Empty;
     public string ApiAppIdUri { get; set; } = string.Empty; // z.B. api://<api-server-app-id>
     public bool UseManagedIdentity { get; set; }
     public string? ManagedIdentityClientId { get; set; }
