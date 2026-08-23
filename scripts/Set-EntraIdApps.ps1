@@ -301,10 +301,9 @@ foreach ($clientKey in $McpOAuthClients.Keys) {
         Write-Host "  -> '$clientDisplayName' existiert bereits ($clientAppId), aktualisiere Konfiguration"
     }
 
-    # WICHTIG: "web"-Plattform + Public-Client-Flows erlauben (nicht "spa"), siehe Kommentar in
+    # WICHTIG: "web"-Plattform + isFallbackPublicClient=true (nicht "spa"), siehe Kommentar in
     # terraform/modules/entra-id/main.tf und docs/DEPLOYMENT.md ("MCP OAuth Clients") fuer die
     # AADSTS7000218/AADSTS9002325-Historie dieser Entscheidung.
-    az ad app update --id $clientAppId --set publicClient='{"redirectUris":[]}' | Out-Null
     if ($clientConfig.redirectUris.Count -gt 0) {
         $webBody = @{
             redirectUris          = @($clientConfig.redirectUris)
