@@ -78,8 +78,14 @@ Der MCP Server ist als OAuth Resource Server geschützt. Für ChatGPT, Claude un
 verwendet werden, nicht localhost:
 
 ```text
-https://entramcp-<env>-mcp.azurewebsites.net
+https://entramcp-<env>-mcp.azurewebsites.net/mcp
 ```
+
+`/mcp` ist der **einzige** MCP-Endpunkt (Streamable HTTP, stateless). Ein separater Legacy-SSE-Endpunkt
+(`/sse`) wird bewusst nicht angeboten – ChatGPT, Claude und Copilot Studio sprechen alle bereits
+Streamable HTTP. `ModelContextProtocol.AspNetCore` v2 laesst `EnableLegacySse` und `Stateless`
+(Default: `true`) nicht gleichzeitig zu (wirft beim Start eine `InvalidOperationException`); dieses
+Repo bleibt daher konsequent bei Stateless + Streamable HTTP.
 
 Der Server veröffentlicht die MCP OAuth Protected Resource Metadata unter:
 
@@ -136,6 +142,23 @@ pwsh ./scripts/Set-GitHubActionsSettings.ps1 -Environment dev
 OAuth bleibt der bevorzugte Weg. Optional kann für einfache Test-Clients ein statischer Header
 `X-MCP-API-Key` verwendet werden, wenn `McpAuth__ApiKey` als App Setting oder lokal als User Secret
 gesetzt ist. Ohne gesetzten Key ist diese Alternative deaktiviert.
+
+#### Warum "Dynamic Client Registration" (DCR) und "CIMD" beim Verbinden grau/deaktiviert sind
+
+Der aktuelle MCP-Autorisierungs-Standard sieht drei Wege vor, wie ein Client (ChatGPT, Claude, ...) an
+eine OAuth-Client-ID kommt: **Pre-Registration** (manuell, was dieses Repo nutzt), **CIMD** (Client ID
+Metadata Document) und **DCR** (Dynamic Client Registration, RFC 7591). **Microsoft Entra ID
+implementiert weder DCR noch CIMD** – es gibt keinen `registration_endpoint` und keine
+CIMD-Unterstützung. Das ist kein Bug in diesem Repo oder im MCP Server, sondern eine bekannte Lücke von
+Entra ID selbst. Deshalb zeigen ChatGPT & Co. bei "Benutzerdefinierter OAuth-Client" die Optionen DCR/CIMD
+grau an, sobald die Autorisierungs-URL auf `login.microsoftonline.com` zeigt.
+
+**Die einzige praktikable Lösung ist Pre-Registration** – genau das, was `terraform/modules/entra-id`
+automatisiert (separate App-Registrierung pro Ziel-Client: ChatGPT/Claude/Copilot Studio). Trage die
+resultierende Client-ID (und optional das Secret, falls der Client eines verlangt) manuell im jeweiligen
+Connector-UI ein, wie im Screenshot des ChatGPT-Connectors ("Benutzerdefinierter OAuth-Client", Feld
+"OAuth-Client-ID"). Eine Alternative wäre ein selbst betriebener DCR/CIMD-Proxy vor Entra ID – für dieses
+MVP bewusst nicht umgesetzt, da er zusätzliche Angriffsfläche und Betriebsaufwand bedeutet.
 
 ## Weg 2: Bicep (Alternative)
 

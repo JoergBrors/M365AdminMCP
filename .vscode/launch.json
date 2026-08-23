@@ -4,9 +4,10 @@
     {
       "name": "Debug API + MCP",
       "configurations": [
-        "Debug ApiServer",
-        "Debug McpServer"
+        "Debug ApiServer (no prep)",
+        "Debug McpServer (no prep)"
       ],
+      "preLaunchTask": "prepare-combined-debug",
       "stopAll": true
     }
   ],
@@ -16,7 +17,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "prepare-api-debug",
-      "program": "${workspaceFolder}/src/ApiServer/bin/Debug/net8.0/ApiServer.dll",
+      "program": "${workspaceFolder}/src/ApiServer/bin/Debug/net10.0/ApiServer.dll",
       "args": [],
       "cwd": "${workspaceFolder}/src/ApiServer",
       "stopAtEntry": false,
@@ -36,10 +37,54 @@
       "request": "launch",
       "preLaunchTask": "prepare-mcp-debug",
       "postDebugTask": "stop-local-debug-servers",
-      "program": "${workspaceFolder}/src/McpServer/bin/Debug/net8.0/McpServer.dll",
+      "program": "${workspaceFolder}/src/McpServer/bin/Debug/net10.0/McpServer.dll",
       "args": [],
       "cwd": "${workspaceFolder}/src/McpServer",
       "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+http://\\S+:5143",
+        "uriFormat": "http://localhost:5143/healthz"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5143;https://localhost:7143",
+        "ApiServer__BaseUrl": "http://localhost:5043",
+        "McpAuth__ExternalBaseUrl": "https://mydevice-mcp.brors.date"
+      }
+    },
+    {
+      "name": "Debug ApiServer (no prep)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/ApiServer/bin/Debug/net10.0/ApiServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/ApiServer",
+      "stopAtEntry": false,
+      "presentation": {
+        "hidden": true
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+http://\\S+:5043",
+        "uriFormat": "http://localhost:5043/swagger/index.html?localDebug=1"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5043;https://localhost:7043"
+      }
+    },
+    {
+      "name": "Debug McpServer (no prep)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/McpServer/bin/Debug/net10.0/McpServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/McpServer",
+      "stopAtEntry": false,
+      "presentation": {
+        "hidden": true
+      },
       "serverReadyAction": {
         "action": "openExternally",
         "pattern": "\\bNow listening on:\\s+http://\\S+:5143",

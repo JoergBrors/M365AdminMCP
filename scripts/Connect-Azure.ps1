@@ -98,3 +98,7 @@ if ($LASTEXITCODE -ne 0 -or -not $active) {
     throw "az account show ist nach dem Login fehlgeschlagen - kein gueltiger Azure-Kontext aktiv."
 }
 Write-Host "OK: Aktive Subscription '$($active.name)' ($($active.id)), Tenant $($active.tenantId)" -ForegroundColor Green
+
+# azurerm-Provider >= 4.0 verlangt explizit eine Subscription (kein reines Ambient-Auth mehr) -
+# ARM_SUBSCRIPTION_ID wird von Terraform automatisch aufgegriffen, ohne dass sie im HCL-Code stehen muss.
+$env:ARM_SUBSCRIPTION_ID = $active.id

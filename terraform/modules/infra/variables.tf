@@ -63,9 +63,3 @@ variable "mcp_oauth_client_ids" {
   type    = map(string)
   default = {}
 }
-
-variable "mcp_oauth_client_secrets" {
-  type      = map(string)
-  sensitive = true
-  default   = {}
-}

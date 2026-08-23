@@ -5,10 +5,6 @@ using ModelContextProtocol.Server;
 
 namespace McpServer.Tools;
 
-// HINWEIS: Das MCP-C#-SDK ist Stand jetzt Preview. Die Attribute [McpServerToolType]/[McpServerTool]
-// entsprechen dem aktuell dokumentierten Muster von ModelContextProtocol.AspNetCore; bitte gegen die
-// zum Build-Zeitpunkt aktuelle Paketversion/Doku prüfen, falls sich die API geändert hat.
-
 [McpServerToolType]
 public class TasksTool
 {

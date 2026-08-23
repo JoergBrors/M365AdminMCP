@@ -94,15 +94,6 @@ resource "azurerm_key_vault_secret" "mcp_oauth_client_id" {
   depends_on   = [azurerm_role_assignment.deployer_kv_admin]
 }
 
-resource "azurerm_key_vault_secret" "mcp_oauth_client_secret" {
-  for_each = var.mcp_oauth_client_ids
-
-  name         = "${each.key}-mcp-client-secret"
-  value        = var.mcp_oauth_client_secrets[each.key]
-  key_vault_id = azurerm_key_vault.this.id
-  depends_on   = [azurerm_role_assignment.deployer_kv_admin]
-}
-
 # --- App Service ---
 
 locals {
@@ -135,7 +126,7 @@ resource "azurerm_linux_web_app" "api" {
   site_config {
     always_on = !local.is_free_tier
     application_stack {
-      dotnet_version = "8.0"
+      dotnet_version = "10.0"
     }
   }
 
@@ -167,7 +158,7 @@ resource "azurerm_linux_web_app" "mcp" {
   site_config {
     always_on = !local.is_free_tier
     application_stack {
-      dotnet_version = "8.0"
+      dotnet_version = "10.0"
     }
   }
 

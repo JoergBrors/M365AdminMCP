@@ -196,12 +196,24 @@ resource "azuread_application" "mcp_oauth_client" {
   display_name     = each.value.display_name
   sign_in_audience = "AzureADMyOrg"
 
+  # WICHTIG: "web"-Plattform + fallback_public_client_enabled=true (NICHT "spa"):
+  # ChatGPT/Claude/Copilot Studio sind serverseitige Connectoren, die den Auth-Code NICHT aus
+  # gleichem Browser-JS-Origin einloesen (kein echter SPA-Client, obwohl der initiale Redirect
+  # durch den Browser des Nutzers laeuft). Zwei Fallstricke, beide bereits durchlaufen:
+  #   - "web" ohne fallback_public_client_enabled => Entra verlangt IMMER client_secret/
+  #     client_assertion am Token-Endpunkt (AADSTS7000218), obwohl die Connectoren PKCE-only
+  #     ("Authentifizierungsmethode: none") senden.
+  #   - "spa"-Plattform loest Entras Origin-basierte Cross-Origin-PKCE-Pruefung aus, die nur
+  #     fuer echte Browser-JS-Redemption gedacht ist; eine serverseitige Einloesung ohne
+  #     Origin-Header (aber ueber eine spa-Redirect-URI) scheitert mit AADSTS9002325.
+  # Fix: "web"-Redirect-URI + Public-Client-Flows erlauben - PKCE bleibt Pflicht am Client,
+  # aber ohne die SPA-spezifische Origin-Pruefung.
+  # https://learn.microsoft.com/troubleshoot/entra/entra-id/app-integration/confidential-client-application-authentication-error-aadsts7000218
+  # https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow#redirect-uris-for-single-page-apps-spas
+  fallback_public_client_enabled = true
+
   web {
     redirect_uris = each.value.redirect_uris
-    implicit_grant {
-      access_token_issuance_enabled = false
-      id_token_issuance_enabled     = true
-    }
   }
 
   required_resource_access {
@@ -220,13 +232,9 @@ resource "azuread_service_principal" "mcp_oauth_client" {
   client_id = each.value.client_id
 }
 
-resource "azuread_application_password" "mcp_oauth_client" {
-  for_each = azuread_application.mcp_oauth_client
-
-  application_id    = each.value.id
-  display_name      = "terraform-managed-secret-${var.environment_name}"
-  end_date_relative = "8760h" # 1 Jahr - fuer externe MCP OAuth Clients
-}
+# Kein Client Secret fuer diese Apps: SPA/public-client + PKCE braucht keins (siehe Kommentar
+# oben bei azuread_application.mcp_oauth_client) - ChatGPT/Claude/Copilot Studio senden am
+# Token-Endpunkt "Authentifizierungsmethode: none".
 
 # --- Admin Consent / App Role Assignments (App-only) ---
 

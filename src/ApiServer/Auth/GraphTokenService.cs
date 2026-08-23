@@ -21,9 +21,10 @@ public class GraphTokenService
 
         if (_options.UseManagedIdentity)
         {
-            _managedIdentityCredential = string.IsNullOrWhiteSpace(_options.ManagedIdentityClientId)
-                ? new ManagedIdentityCredential()
-                : new ManagedIdentityCredential(_options.ManagedIdentityClientId);
+            _managedIdentityCredential = new ManagedIdentityCredential(
+                string.IsNullOrWhiteSpace(_options.ManagedIdentityClientId)
+                    ? ManagedIdentityId.SystemAssigned
+                    : ManagedIdentityId.FromUserAssignedClientId(_options.ManagedIdentityClientId));
             return;
         }
 

@@ -38,8 +38,3 @@ output "swagger_client_app_id" {
 output "mcp_oauth_client_ids" {
   value = module.entra_id.mcp_oauth_client_ids
 }
-
-output "mcp_oauth_client_secrets" {
-  value     = module.entra_id.mcp_oauth_client_secrets
-  sensitive = true
-}

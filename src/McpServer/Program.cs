@@ -72,8 +72,11 @@ if (requireMcpAuthentication)
     });
 }
 
-// MCP Server mit HTTP/SSE-Transport (passend für Hosting auf Azure App Service).
-// HINWEIS: Preview-API, siehe Kommentar in Tools/TasksTool.cs.
+// MCP Server mit Streamable HTTP Transport (passend fuer Hosting auf Azure App Service).
+// Stateless (SDK-Default seit v2): keine Mcp-Session-Id, kein Session-Affinity-Bedarf bei
+// mehreren App-Service-Instanzen. Legacy-SSE (/sse, /message) ist bewusst NICHT aktiviert -
+// ChatGPT, Claude und Copilot Studio sprechen alle bereits Streamable HTTP, und
+// EnableLegacySse=true wirft bei Stateless=true (Default) eine InvalidOperationException.
 builder.Services
     .AddMcpServer()
     .WithHttpTransport()
@@ -113,7 +116,7 @@ if (requireMcpAuthentication)
 
 MapOAuthProtectedResourceMetadata(app);
 
-var mcpEndpoint = app.MapMcp(); // registriert die MCP-Endpunkte (SSE/HTTP)
+var mcpEndpoint = app.MapMcp("/mcp"); // einziger MCP-Endpunkt: Streamable HTTP (stateless)
 if (requireMcpAuthentication)
 {
     mcpEndpoint.RequireAuthorization("McpAccess");

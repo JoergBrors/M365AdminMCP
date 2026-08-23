@@ -1,8 +1,8 @@
 # Entra ID + MCP/API Server – MVP Entwicklungsumgebung
 
 Fertiges Starter-Repo für:
-- **API Server** (ASP.NET Core, .NET 8) – geschützt via Entra ID, unterstützt **App-only** (Client Credentials) **und** **Delegated** (Auth Code / On-Behalf-Of) Tokens
-- **MCP Server** (ASP.NET Core + `ModelContextProtocol` SDK) – ruft den API Server sowohl app-only als auch im Namen eines angemeldeten Nutzers auf, und liest zusätzlich tenant-weit **Office 365 Status** (Service Health), **Message Center** (Nachrichten) und **Adoption/Usage Reports** direkt über Microsoft Graph
+- **API Server** (ASP.NET Core, .NET 10 LTS) – geschützt via Entra ID, unterstützt **App-only** (Client Credentials) **und** **Delegated** (Auth Code / On-Behalf-Of) Tokens
+- **MCP Server** (ASP.NET Core, .NET 10 LTS + `ModelContextProtocol.AspNetCore` v2, Streamable HTTP, stateless) – ruft den API Server sowohl app-only als auch im Namen eines angemeldeten Nutzers auf, und liest zusätzlich tenant-weit **Office 365 Status** (Service Health), **Message Center** (Nachrichten) und **Adoption/Usage Reports** direkt über Microsoft Graph. Vorregistrierte OAuth-Clients für **ChatGPT**, **Claude** und **Copilot Studio** (siehe `docs/DEPLOYMENT.md`, Abschnitt "MCP OAuth Clients")
 - **Infrastruktur als Code** – **Terraform** (empfohlen, `terraform/`) und alternativ **Bicep** (`infra/`) für Azure App Service, Key Vault, Log Analytics/App Insights
 - **Entra ID Provisionierung** – per Terraform (`hashicorp/azuread`, stabil), per Skript (Azure CLI, robust) oder optional per Bicep über die (Preview-)Microsoft-Graph-Bicep-Extension
 - **What-If / Config-Diff** – bei Terraform in einem gemeinsamen `terraform plan` (Azure + Entra ID im selben State); bei Bicep als zwei getrennte Diffs (`az deployment ... what-if` + eigener Entra-Diff)
@@ -43,7 +43,7 @@ entra-mcp-mvp/
 
 ## Voraussetzungen
 
-- .NET 8 SDK
+- .NET 10 SDK (aktuelle LTS) – `Install-Prerequisites.ps1` installiert es automatisch, falls keine SDK-Version ≥ 10 gefunden wird
 - **PowerShell 7** (`pwsh`) – alle Skripte in `scripts/` sind `.ps1` und laufen identisch unter macOS, Windows und Linux
 - Azure CLI (`az`) ≥ 2.60, eingeloggt mit einem Konto mit **Application Administrator** (Entra-ID-Rolle) und **Contributor** auf der Ziel-Subscription/Resource Group
 - **GitHub CLI** (`gh`) – für das Repo-Setup; wird von `Install-Prerequisites.ps1` automatisch installiert, falls nicht vorhanden
