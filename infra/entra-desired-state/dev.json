@@ -1,18 +1,43 @@
 {
+  "grants": {
+    "appRoleAssignment": {
+      "from": "mcp-server-dev",
+      "to": "api-server-dev",
+      "role": "Tasks.ReadWrite.All"
+    },
+    "delegatedGrant": {
+      "from": "mcp-server-dev",
+      "to": "api-server-dev",
+      "scope": "Tasks.ReadWrite"
+    },
+    "graphGrants": {
+      "from": "mcp-server-dev",
+      "to": "Microsoft Graph",
+      "roles": [
+        "ServiceHealth.Read.All",
+        "ServiceMessage.Read.All",
+        "Reports.Read.All"
+      ]
+    }
+  },
   "mcpApp": {
-    "redirectUris": [
-      "https://entramcp-dev-mcp.azurewebsites.net/signin-oidc"
+    "appId": "00282801-c55c-4ce8-8039-5b80521e58f1",
+    "delegatedScopes": [
+      "Mcp.Access"
     ],
-    "signInAudience": "AzureADMyOrg",
-    "displayName": "mcp-server-dev",
-    "appId": "ef983644-a321-4eaf-a5de-9155e36b0e1e",
     "graphAppOnlyPermissions": [
       "ServiceHealth.Read.All",
       "ServiceMessage.Read.All",
       "Reports.Read.All"
-    ]
+    ],
+    "redirectUris": [
+      "https://entramcp-dev-mcp.azurewebsites.net/signin-oidc"
+    ],
+    "signInAudience": "AzureADMyOrg",
+    "displayName": "mcp-server-dev"
   },
   "apiApp": {
+    "displayName": "api-server-dev",
     "delegatedScopes": [
       "Tasks.ReadWrite"
     ],
@@ -20,29 +45,12 @@
     "appRoles": [
       "Tasks.ReadWrite.All"
     ],
-    "displayName": "api-server-dev",
-    "appId": "577cfd9f-b5e5-4191-98db-139b47ff53e1"
+    "appId": "43255b77-c7bf-43e8-a08c-fd7351f83f8c"
   },
-  "grants": {
-    "delegatedGrant": {
-      "to": "api-server-dev",
-      "scope": "Tasks.ReadWrite",
-      "from": "mcp-server-dev"
-    },
-    "appRoleAssignment": {
-      "to": "api-server-dev",
-      "role": "Tasks.ReadWrite.All",
-      "from": "mcp-server-dev"
-    },
-    "graphGrants": {
-      "roles": [
-        "ServiceHealth.Read.All",
-        "ServiceMessage.Read.All",
-        "Reports.Read.All"
-      ],
-      "to": "Microsoft Graph",
-      "from": "mcp-server-dev"
-    }
-  },
-  "tenantId": "db88f9b6-c89a-41a3-a21d-b61458e234ff"
+  "tenantId": "db88f9b6-c89a-41a3-a21d-b61458e234ff",
+  "mcpOAuthClients": {
+    "claude": "652027a3-8ee4-47bd-8351-45486d990bc4",
+    "copilot": "fb290abf-0341-4147-ade7-ebf92f1a7944",
+    "chatgpt": "dc3a7460-75ff-4624-b85c-026e393f4895"
+  }
 }
