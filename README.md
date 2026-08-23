@@ -31,6 +31,7 @@ entra-mcp-mvp/
 │   ├── New-GitHubRepo.ps1                            # Repo-Setup via GitHub CLI (gh)
 │   ├── Initialize-TerraformBackend.ps1, Invoke-TerraformPlan.ps1, Invoke-TerraformApply.ps1
 │   ├── Set-EntraIdApps.ps1, Invoke-BicepWhatIf.ps1, Invoke-BicepDeploy.ps1
+│   ├── Add-McpOauthRedirectUri.ps1                    # neue ChatGPT/Claude/Copilot-Redirect-URI nachtragen
 │   └── Get-EntraIdDiff.ps1                           # nur für Bicep-Weg separat nötig
 ├── docs/
 │   ├── ARCHITECTURE.md

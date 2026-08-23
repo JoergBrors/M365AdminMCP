@@ -95,19 +95,42 @@ public static class OAuthProxy
             forwarded[pair.Key] = pair.Value.ToString();
         }
 
+        // client_id/grant_type/redirect_uri sind unbedenklich zu loggen (keine Secrets). code/
+        // code_verifier NICHT loggen - die bleiben bewusst aussen vor.
+        logger.LogInformation(
+            "OAuthProxy /token: Form-Felder: {Fields}, Authorization-Header vorhanden: {HasAuth}, client_id: {ClientId}, grant_type: {GrantType}, redirect_uri: {RedirectUri}",
+            string.Join(",", form.Keys),
+            context.Request.Headers.ContainsKey("Authorization"),
+            forwarded.GetValueOrDefault("client_id"),
+            forwarded.GetValueOrDefault("grant_type"),
+            forwarded.GetValueOrDefault("redirect_uri"));
+
         var client = httpClientFactory.CreateClient();
         using var forwardedContent = new FormUrlEncodedContent(forwarded);
-        using var upstreamResponse = await client.PostAsync(
-            $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token",
-            forwardedContent,
-            context.RequestAborted);
+        using var upstreamRequest = new HttpRequestMessage(HttpMethod.Post,
+            $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token")
+        {
+            Content = forwardedContent
+        };
+        // Manche OAuth-Clients senden client_id/client_secret nicht im Form-Body, sondern per
+        // HTTP Basic Auth (RFC 6749 §2.3.1) - dieser Header muss unveraendert durchgereicht
+        // werden, sonst kann Entra den Client nicht identifizieren (401 statt 400 invalid_grant).
+        if (context.Request.Headers.TryGetValue("Authorization", out var authHeader) &&
+            System.Net.Http.Headers.AuthenticationHeaderValue.TryParse(authHeader.ToString(), out var parsedAuth))
+        {
+            upstreamRequest.Headers.Authorization = parsedAuth;
+        }
+
+        using var upstreamResponse = await client.SendAsync(upstreamRequest, context.RequestAborted);
 
         var body = await upstreamResponse.Content.ReadAsStringAsync(context.RequestAborted);
         var contentType = upstreamResponse.Content.Headers.ContentType?.ToString() ?? "application/json";
 
         if (!upstreamResponse.IsSuccessStatusCode)
         {
-            logger.LogWarning("OAuthProxy /token: Entra antwortete mit {StatusCode}.", (int)upstreamResponse.StatusCode);
+            // Body enthaelt nur Entras Fehler-JSON (error/error_description/trace_id) - keine
+            // Secrets/Tokens - unbedenklich zu loggen und fuer die Diagnose essenziell.
+            logger.LogWarning("OAuthProxy /token: Entra antwortete mit {StatusCode}. Body: {Body}", (int)upstreamResponse.StatusCode, body);
         }
 
         return Results.Text(body, contentType, statusCode: (int)upstreamResponse.StatusCode);
@@ -145,7 +168,13 @@ public static class OAuthProxy
 
         var metadata = new Dictionary<string, object?>
         {
-            ["issuer"] = $"https://login.microsoftonline.com/{tenantId}/v2.0",
+            // RFC 8414 §3.3: "issuer" MUSS exakt der Origin entsprechen, von der dieses
+            // Dokument selbst abgerufen wurde (die Proxy-Fassade), NICHT Entras echtem Issuer.
+            // Ein Mismatch fuehrt bei strikten Clients (u.a. Claude) dazu, dass das Dokument
+            // verworfen wird bzw. der nachfolgende Token-Austausch mit "invalid_client"
+            // scheitert. Die tatsaechliche Token-Validierung (JWT "iss"-Claim) laeuft
+            // unabhaengig davon weiterhin gegen Entras echten Issuer/JWKS.
+            ["issuer"] = baseUrl,
             ["authorization_endpoint"] = $"{baseUrl}/authorize",
             ["token_endpoint"] = $"{baseUrl}/token",
             ["jwks_uri"] = root.GetProperty("jwks_uri").GetString(),

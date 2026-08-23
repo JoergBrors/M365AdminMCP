@@ -8,3 +8,7 @@ chatgpt_mcp_redirect_uris = [
   "https://chatgpt.com/connector/oauth/4WbYBsSow_8L",
   "https://chatgpt.com/connector/oauth/Mw_WfO7C7DHQ"
 ]
+
+claude_mcp_redirect_uris = [
+  "https://claude.ai/api/mcp/auth_callback"
+]

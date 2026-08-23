@@ -196,23 +196,27 @@ resource "azuread_application" "mcp_oauth_client" {
   display_name     = each.value.display_name
   sign_in_audience = "AzureADMyOrg"
 
-  # WICHTIG: "web"-Plattform + fallback_public_client_enabled=true (NICHT "spa"):
-  # ChatGPT/Claude/Copilot Studio sind serverseitige Connectoren, die den Auth-Code NICHT aus
-  # gleichem Browser-JS-Origin einloesen (kein echter SPA-Client, obwohl der initiale Redirect
-  # durch den Browser des Nutzers laeuft). Zwei Fallstricke, beide bereits durchlaufen:
-  #   - "web" ohne fallback_public_client_enabled => Entra verlangt IMMER client_secret/
-  #     client_assertion am Token-Endpunkt (AADSTS7000218), obwohl die Connectoren PKCE-only
-  #     ("Authentifizierungsmethode: none") senden.
+  # WICHTIG: "publicClient"-Plattform (NICHT "web", NICHT "spa"). ChatGPT/Claude/Copilot Studio
+  # sind serverseitige Connectoren, die den Auth-Code NICHT aus gleichem Browser-JS-Origin
+  # einloesen (kein echter SPA-Client, obwohl der initiale Redirect durch den Browser des
+  # Nutzers laeuft). Drei Fallstricke, alle bereits durchlaufen:
+  #   - "web" (auch MIT fallback_public_client_enabled=true) => Entra klassifiziert den Client-
+  #     Typ per authorization_code-Flow anhand der Redirect-URI-PLATTFORM, nicht anhand von
+  #     isFallbackPublicClient - eine "web"-Redirect-URI erzwingt IMMER confidential client
+  #     (client_secret/client_assertion Pflicht, AADSTS7000218), unabhaengig vom Flag.
+  #     isFallbackPublicClient wirkt nur bei Flows OHNE redirect_uri (Device Code, ROPC).
   #   - "spa"-Plattform loest Entras Origin-basierte Cross-Origin-PKCE-Pruefung aus, die nur
   #     fuer echte Browser-JS-Redemption gedacht ist; eine serverseitige Einloesung ohne
   #     Origin-Header (aber ueber eine spa-Redirect-URI) scheitert mit AADSTS9002325.
-  # Fix: "web"-Redirect-URI + Public-Client-Flows erlauben - PKCE bleibt Pflicht am Client,
-  # aber ohne die SPA-spezifische Origin-Pruefung.
-  # https://learn.microsoft.com/troubleshoot/entra/entra-id/app-integration/confidential-client-application-authentication-error-aadsts7000218
-  # https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow#redirect-uris-for-single-page-apps-spas
+  #   - Fix: "publicClient"-Redirect-URI (Terraform: public_client-Block) - https-URLs zu
+  #     Drittanbieter-Domains sind dort ausdruecklich erlaubt (kein Custom-Scheme/localhost-
+  #     Zwang), und der Grant-Type authorization_code+PKCE wird korrekt als public client ohne
+  #     Secret behandelt.
+  # https://learn.microsoft.com/troubleshoot/entra/entra-id/app-integration/confidential-client-application-authentication-error-aadsts7000218#how-microsoft-entra-id-determines-the-client-type
+  # https://learn.microsoft.com/entra/identity-platform/reply-url
   fallback_public_client_enabled = true
 
-  web {
+  public_client {
     redirect_uris = each.value.redirect_uris
   }
 
@@ -281,5 +285,10 @@ resource "azuread_service_principal_delegated_permission_grant" "mcp_oauth_clien
 
   service_principal_object_id          = each.value.object_id
   resource_service_principal_object_id = azuread_service_principal.mcp.object_id
-  claim_values                         = ["Mcp.Access"]
+  # "offline_access" gehoert explizit HIERHER (gegen mcp-server), nicht implizit gegen
+  # Microsoft Graph - sonst grantet Entra bei manchen Client-Consent-Fluessen einen separaten,
+  # unvollstaendigen Grant gegen Graph, was zu AADSTS65001 ("not consented") fuehrt, obwohl
+  # Mcp.Access bereits gewaehrt ist (beobachtet bei Claude, das scope="Mcp.Access offline_access"
+  # gemeinsam gegen dieselbe Ressource sendet).
+  claim_values = ["Mcp.Access", "offline_access"]
 }

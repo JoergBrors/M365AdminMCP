@@ -9,9 +9,17 @@ Es gibt jetzt **drei** Wege, alle liegen im Repo:
 | C) `terraform/modules/entra-id` (hashicorp/azuread Provider) | **Stabil, GA** | **Empfohlen, sobald ohnehin Terraform genutzt wird** (siehe unten) |
 
 Alle drei legen dieselben Objekte an: `api-server`, `mcp-server`, die App-Role-/Delegated-Permission-Grants
-zwischen beiden, sowie inzwischen zusätzlich die Microsoft-Graph-Application-Permissions
-`ServiceHealth.Read.All`, `ServiceMessage.Read.All`, `Reports.Read.All` für die Office-365-Status-/
-Nachrichten-/Adoption-Tools des MCP Servers (siehe `docs/ARCHITECTURE.md`).
+zwischen beiden, die Microsoft-Graph-Application-Permissions `ServiceHealth.Read.All`,
+`ServiceMessage.Read.All`, `Reports.Read.All` für die Office-365-Status-/Nachrichten-/Adoption-Tools
+des MCP Servers (siehe `docs/ARCHITECTURE.md`), sowie die drei externen MCP-OAuth-Client-Apps für
+**ChatGPT**, **Claude** und **Copilot Studio** (siehe `docs/DEPLOYMENT.md`, Abschnitt "MCP OAuth
+Clients") – jeweils als `web`-Plattform-Redirect-URI mit `isFallbackPublicClient`/
+`fallback_public_client_enabled = true` (public client, PKCE-only, kein Secret).
+
+**Wichtig: Immer nur EINEN Weg pro Umgebung verwenden, niemals mischen.** Alle drei Wege verwalten
+dieselben Entra-Objekte inkl. Client Secrets. Läuft z. B. `Set-EntraIdApps.ps1` gegen eine bereits per
+Terraform verwaltete Umgebung, erzeugt `az ad app credential reset` ein neues aktives Secret und macht
+das von Terraform verwaltete Secret ungültig – der nächste `terraform plan` zeigt dann Drift.
 
 ## Weg A (empfohlen): `scripts/Set-EntraIdApps.ps1`
 
@@ -20,8 +28,14 @@ Nutzt die Azure CLI (`az ad app`, `az ad sp`, Microsoft Graph über `az rest`). 
 - Idempotent: erneutes Ausführen erkennt bestehende Apps (per `displayName`-Tag) und aktualisiert statt zu duplizieren
 - Legt automatisch an:
   - App Registration `api-server` mit App Role `Tasks.ReadWrite.All` und Delegated Scope `Tasks.ReadWrite`
-  - App Registration `mcp-server` mit Redirect URI, Client Secret
-  - Service Principals für beide
+  - App Registration `mcp-server` mit Redirect URI, Client Secret, Delegated Scope `Mcp.Access`
+    (für die externen MCP-OAuth-Clients)
+  - App Registrations `chatgpt-mcp-client-<env>`, `claude-mcp-client-<env>`, `copilot-mcp-client-<env>`
+    als public clients (kein Secret) mit Delegated-Permission-Grant auf `Mcp.Access`. Redirect-URIs
+    per `-ChatGptRedirectUris`/`-ClaudeRedirectUris`/`-CopilotRedirectUris` Parameter oder nachträglich
+    via `scripts/Add-McpOauthRedirectUri.ps1` (z. B. weil ChatGPT bei jeder Connector-Neuanlage eine
+    neue, zufällige Callback-URL generiert)
+  - Service Principals für alle Apps
   - App-Role-Assignment: `mcp-server` → `api-server` (Application Permission)
   - OAuth2-Permission-Grant: `mcp-server` → `api-server` (Delegated Permission), inkl. Admin Consent
   - Schreibt Client Secret + IDs in Key Vault (`az keyvault secret set`)

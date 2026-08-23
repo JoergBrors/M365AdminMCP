@@ -5,6 +5,15 @@
     App-only-Permissions fuer Office 365 Status/Message Center/Adoption. Cross-platform
     (macOS/Windows/Linux) ueber PowerShell 7 + Azure CLI.
 
+.NOTES
+    WARNUNG: Nicht gegen eine Umgebung ausfuehren, die bereits per Terraform verwaltet wird
+    (terraform/modules/entra-id) - beide verwalten dieselben Entra-Objekte inkl. Client Secrets.
+    Ein Lauf dieses Skripts gegen eine Terraform-verwaltete Umgebung erzeugt per
+    "az ad app credential reset" ein NEUES aktives Client-Secret und macht damit das von
+    Terraform verwaltete Secret ungueltig - der naechste "terraform plan" zeigt dann Drift
+    (neues Secret + zurueckgesetzte requiredResourceAccess). Nur EINEN Weg (Terraform ODER
+    dieses Skript) pro Umgebung verwenden, siehe docs/DEPLOYMENT.md.
+
 .PARAMETER Environment
     Kurzname der Umgebung, z.B. dev, staging, prod.
 

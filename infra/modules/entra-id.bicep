@@ -25,6 +25,13 @@ param apiAppDisplayName string = 'api-server'
 param mcpAppDisplayName string = 'mcp-server'
 param mcpRedirectUri string
 
+@description('Redirect URIs fuer ChatGPT/Claude/Copilot Studio MCP-OAuth-Clients. Leer = Client wird ohne Redirect-URI angelegt (spaeter manuell in Entra ergaenzen).')
+param chatgptRedirectUris array = []
+param claudeRedirectUris array = [
+  'https://claude.ai/api/mcp/auth_callback'
+]
+param copilotRedirectUris array = []
+
 resource apiApp 'Microsoft.Graph/applications@v1.0' = {
   uniqueName: apiAppDisplayName
   displayName: apiAppDisplayName
@@ -69,6 +76,23 @@ resource mcpApp 'Microsoft.Graph/applications@v1.0' = {
       mcpRedirectUri
     ]
   }
+  // Delegated Scope fuer externe MCP-OAuth-Clients (ChatGPT/Claude/Copilot Studio), siehe
+  // mcpOAuthClients weiter unten.
+  api: {
+    requestedAccessTokenVersion: 2
+    oauth2PermissionScopes: [
+      {
+        id: guid(mcpAppDisplayName, 'mcp-access-scope')
+        adminConsentDisplayName: 'Access MCP server'
+        adminConsentDescription: 'Allow MCP clients (ChatGPT, Claude, Copilot Studio) to access the MCP server on behalf of the signed-in user'
+        userConsentDisplayName: 'Access MCP server'
+        userConsentDescription: 'Allow this client to access the MCP server on your behalf'
+        value: 'Mcp.Access'
+        type: 'User'
+        isEnabled: true
+      }
+    ]
+  }
   requiredResourceAccess: [
     {
       resourceAppId: apiApp.appId
@@ -97,5 +121,57 @@ resource appRoleAssignment 'Microsoft.Graph/appRoleAssignedTo@v1.0' = {
   resourceId: apiSp.id
 }
 
+// --- Externe MCP-OAuth-Clients (ChatGPT/Claude/Copilot Studio) ---
+// WICHTIG: "web"-Plattform + isFallbackPublicClient=true (NICHT "spa"), siehe Kommentar in
+// terraform/modules/entra-id/main.tf und docs/DEPLOYMENT.md ("MCP OAuth Clients") fuer die
+// AADSTS7000218/AADSTS9002325-Historie dieser Entscheidung.
+var mcpOAuthClients = [
+  {
+    key: 'chatgpt'
+    displayName: 'chatgpt-mcp-client'
+    redirectUris: chatgptRedirectUris
+  }
+  {
+    key: 'claude'
+    displayName: 'claude-mcp-client'
+    redirectUris: claudeRedirectUris
+  }
+  {
+    key: 'copilot'
+    displayName: 'copilot-mcp-client'
+    redirectUris: copilotRedirectUris
+  }
+]
+
+resource mcpOAuthClientApps 'Microsoft.Graph/applications@v1.0' = [for client in mcpOAuthClients: {
+  uniqueName: client.displayName
+  displayName: client.displayName
+  signInAudience: 'AzureADMyOrg'
+  isFallbackPublicClient: true
+  web: {
+    redirectUris: client.redirectUris
+  }
+  requiredResourceAccess: [
+    {
+      resourceAppId: mcpApp.appId
+      resourceAccess: [
+        {
+          id: mcpApp.api.oauth2PermissionScopes[0].id
+          type: 'Scope'
+        }
+      ]
+    }
+  ]
+}]
+
+resource mcpOAuthClientSps 'Microsoft.Graph/servicePrincipals@v1.0' = [for (client, i) in mcpOAuthClients: {
+  appId: mcpOAuthClientApps[i].appId
+}]
+
 output apiAppId string = apiApp.appId
 output mcpAppId string = mcpApp.appId
+output mcpOAuthClientIds object = {
+  chatgpt: mcpOAuthClientApps[0].appId
+  claude: mcpOAuthClientApps[1].appId
+  copilot: mcpOAuthClientApps[2].appId
+}

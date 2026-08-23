@@ -54,5 +54,5 @@ reports/.latest-plan-*
 Thumbs.db
 
 .fake
-publish/mcp.zip
+publish/
 infra/entra-desired-state/dev.json
