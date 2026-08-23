@@ -54,3 +54,4 @@ reports/.latest-plan-*
 Thumbs.db
 
 .fake
+publish/mcp.zip
