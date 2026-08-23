@@ -99,6 +99,32 @@ Der benötigte Scope lautet:
 api://mcp-server-<env>/Mcp.Access
 ```
 
+#### OAuth-Proxy-Fassade vor Entra ID (`Auth/OAuthProxy.cs`)
+
+Der MCP-Autorisierungs-Standard (RFC 8707/9728) verlangt, dass Clients einen `resource`-Parameter mit
+der kanonischen MCP-Server-URL an `/authorize` und `/token` senden. **Entra ID implementiert RFC 8707
+nicht** und lehnt jeden `resource`-Wert, der nicht die eigene App-ID-URI ist, mit `AADSTS9010010` ab.
+Claude sendet `resource` (im Gegensatz zu ChatGPT, das RFC 8707 nicht nutzt) – ohne Fassade schlägt
+der Verbindungsaufbau deshalb fehl.
+
+Deshalb serviert der MCP Server eine eigene, dünne Authorization-Server-Fassade auf seiner eigenen
+Origin:
+
+```text
+GET  /.well-known/oauth-authorization-server   -> synthetisiertes RFC-8414-Dokument (issuer/jwks_uri
+                                                    von Entra übernommen, authorization_endpoint/
+                                                    token_endpoint zeigen auf sich selbst)
+GET  /authorize   -> entfernt "resource" aus der Query, 302-Redirect zu Entras echtem /authorize
+                      (alle anderen Parameter inkl. PKCE, state, scope, redirect_uri unverändert)
+POST /token       -> entfernt "resource" aus dem Form-Body, leitet serverseitig an Entras echtes
+                      /token weiter, gibt Status/Body 1:1 zurück (inkl. Fehler-JSON)
+```
+
+Die Fassade terminiert PKCE **nicht** selbst – `code_challenge`/`code_verifier` laufen unverändert
+Ende-zu-Ende zwischen Client und Entra durch, es wird kein eigenes Secret/State gehalten oder geloggt.
+`authorization_servers` in `/.well-known/oauth-protected-resource` zeigt deshalb auf die eigene
+Origin, nicht direkt auf Entra.
+
 Wenn ChatGPT beim Erstellen des MCP Connectors eine OAuth Redirect URI/Callback URI anzeigt, muss diese
 in `terraform/terraform.<env>.tfvars` ergänzt werden:
 

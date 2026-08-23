@@ -19,6 +19,7 @@ builder.Services.Configure<McpAuthOptions>(builder.Configuration.GetSection("Mcp
 builder.Services.AddSingleton<ApiTokenService>();
 builder.Services.AddSingleton<ApiServerClient>();
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 
 var requireMcpAuthentication = builder.Configuration.GetValue("McpAuth:RequireAuthentication", true);
 if (requireMcpAuthentication)
@@ -115,6 +116,7 @@ if (requireMcpAuthentication)
 }
 
 MapOAuthProtectedResourceMetadata(app);
+app.MapOAuthProxyEndpoints();
 
 var mcpEndpoint = app.MapMcp("/mcp"); // einziger MCP-Endpunkt: Streamable HTTP (stateless)
 if (requireMcpAuthentication)
@@ -133,17 +135,21 @@ static void MapOAuthProtectedResourceMetadata(WebApplication app)
         SetNoStoreHeaders(context.Response);
 
         var baseUrl = GetExternalBaseUrl(context, configuration);
-        var resource = GetMcpResource(configuration);
-        var tenantId = configuration["AzureAd:TenantId"];
+        // RFC 8707/9728: "resource" MUSS die kanonische URL des MCP-Servers selbst sein
+        // (https://.../mcp), NICHT die Entra-Audience (api://...). Manche Clients (z.B.
+        // Claude) verwerfen sonst die externen authorization_servers und raten stattdessen
+        // einen eigenen /authorize-Endpunkt auf dem MCP-Server-Origin.
+        var resource = $"{baseUrl}/mcp";
         var scope = GetMcpScope(configuration);
 
         var metadata = new
         {
             resource,
-            authorization_servers = new[]
-            {
-                $"https://login.microsoftonline.com/{tenantId}/v2.0"
-            },
+            // Zeigt auf die eigene OAuthProxy-Fassade (siehe Auth/OAuthProxy.cs), NICHT direkt
+            // auf Entra: Entra implementiert RFC 8707 nicht und lehnt den von RFC-8707-konformen
+            // Clients (z.B. Claude) mitgesendeten "resource"-Parameter mit AADSTS9010010 ab. Die
+            // Fassade entfernt "resource" transparent, bevor sie an Entra weiterleitet.
+            authorization_servers = new[] { baseUrl },
             bearer_methods_supported = new[] { "header" },
             scopes_supported = new[]
             {
@@ -188,18 +194,6 @@ static string GetMcpScope(IConfiguration configuration)
         : $"{audience}/Mcp.Access";
 }
 
-static string GetMcpResource(IConfiguration configuration)
-{
-    var audience = configuration["AzureAd:Audience"];
-    if (!string.IsNullOrWhiteSpace(audience))
-    {
-        return audience;
-    }
-
-    var scope = GetMcpScope(configuration);
-    var scopeSeparator = scope.LastIndexOf('/');
-    return scopeSeparator > 0 ? scope[..scopeSeparator] : scope;
-}
 
 static void SetNoStoreHeaders(HttpResponse response)
 {

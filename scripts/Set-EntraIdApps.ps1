@@ -11,6 +11,19 @@
 .PARAMETER Destroy
     Entfernt die App-Registrierungen der angegebenen Umgebung wieder (nur fuer Dev/Test gedacht).
 
+.PARAMETER ChatGptRedirectUris
+    Zusaetzliche OAuth Redirect URIs, die ChatGPT beim Einrichten des MCP Connectors vorgibt
+    (https://chatgpt.com/connector/oauth/<random>, aendert sich bei jeder Connector-Neuanlage -
+    siehe scripts/Add-McpOauthRedirectUri.ps1 zum spaeteren Nachtragen).
+
+.PARAMETER ClaudeRedirectUris
+    Zusaetzliche OAuth Redirect URIs, die Claude beim Einrichten des MCP Connectors vorgibt
+    (i.d.R. stabil: https://claude.ai/api/mcp/auth_callback).
+
+.PARAMETER CopilotRedirectUris
+    Zusaetzliche OAuth Redirect URIs, die Copilot Studio/Power Platform beim Einrichten des MCP
+    Connectors vorgibt.
+
 .EXAMPLE
     ./scripts/Set-EntraIdApps.ps1 -Environment dev
 
@@ -20,7 +33,10 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Environment,
-    [switch]$Destroy
+    [switch]$Destroy,
+    [string[]]$ChatGptRedirectUris = @(),
+    [string[]]$ClaudeRedirectUris = @("https://claude.ai/api/mcp/auth_callback"),
+    [string[]]$CopilotRedirectUris = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,8 +49,19 @@ $McpAppName = "mcp-server-$Environment"
 $KeyVaultName = "entramcp-$Environment-kv"
 $AppRoleValue = "Tasks.ReadWrite.All"
 $DelegatedScopeValue = "Tasks.ReadWrite"
+$McpAccessScopeValue = "Mcp.Access"
 $GraphAppId = "00000003-0000-0000-c000-000000000000"
 $GraphAppOnlyPermissions = @("ServiceHealth.Read.All", "ServiceMessage.Read.All", "Reports.Read.All")
+
+# Externe MCP-OAuth-Clients (ChatGPT/Claude/Copilot Studio) - analog zu
+# terraform/modules/entra-id/main.tf: "web"-Plattform + fallback_public_client_enabled, NICHT
+# "spa" (siehe docs/DEPLOYMENT.md, Abschnitt "MCP OAuth Clients" fuer die AADSTS7000218/
+# AADSTS9002325-Historie dieser Entscheidung).
+$McpOAuthClients = @{
+    chatgpt = @{ displayName = "chatgpt-mcp-client-$Environment"; redirectUris = $ChatGptRedirectUris }
+    claude  = @{ displayName = "claude-mcp-client-$Environment"; redirectUris = $ClaudeRedirectUris }
+    copilot = @{ displayName = "copilot-mcp-client-$Environment"; redirectUris = $CopilotRedirectUris }
+}
 
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw "Azure CLI (az) nicht gefunden. Bitte zuerst './scripts/Install-Prerequisites.ps1' ausfuehren."
@@ -205,8 +232,32 @@ $requiredResourceAccess = @(
         resourceAccess = $GraphAppOnlyPermissions | ForEach-Object { @{ id = $graphRoleIds[$_]; type = "Role" } }
     }
 )
-$mcpAppObjectId = Invoke-AzTsv "ad app show --id $mcpAppId --query id"
-Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications/$mcpAppObjectId" -Body @{ requiredResourceAccess = $requiredResourceAccess }
+$mcpApp = Invoke-AzJson "ad app show --id $mcpAppId"
+$mcpAppObjectId = $mcpApp.id
+$mcpAccessScopeId = ($mcpApp.api.oauth2PermissionScopes | Where-Object { $_.value -eq $McpAccessScopeValue } | Select-Object -First 1).id
+if (-not $mcpAccessScopeId) { $mcpAccessScopeId = [guid]::NewGuid().ToString() }
+
+az ad app update --id $mcpAppId --identifier-uris "api://$McpAppName" | Out-Null
+
+$mcpAppPatchBody = @{
+    requiredResourceAccess = $requiredResourceAccess
+    api                     = @{
+        requestedAccessTokenVersion = 2
+        oauth2PermissionScopes      = @(
+            @{
+                id                      = $mcpAccessScopeId
+                adminConsentDescription = "Allow MCP clients (ChatGPT, Claude, Copilot Studio) to access the MCP server on behalf of the signed-in user"
+                adminConsentDisplayName = "Access MCP server"
+                isEnabled               = $true
+                type                    = "User"
+                userConsentDescription  = "Allow this client to access the MCP server on your behalf"
+                userConsentDisplayName  = "Access MCP server"
+                value                   = $McpAccessScopeValue
+            }
+        )
+    }
+}
+Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications/$mcpAppObjectId" -Body $mcpAppPatchBody
 
 # --- App-Role-Assignment (Application Permission) api-server, erfordert Admin-Rechte ---
 Write-Host "  -> weise Application Permission '$AppRoleValue' zu (Admin Consent)"
@@ -229,6 +280,81 @@ foreach ($permName in $GraphAppOnlyPermissions) {
     }
 }
 
+# --- 3. Externe MCP-OAuth-Clients (ChatGPT/Claude/Copilot Studio), idempotent ---
+Write-Host "==> Externe MCP-OAuth-Clients"
+$null = az keyvault show --name $KeyVaultName -o none 2>$null
+$kvExists = ($LASTEXITCODE -eq 0)
+$mcpOAuthClientIds = @{}
+foreach ($clientKey in $McpOAuthClients.Keys) {
+    $clientConfig = $McpOAuthClients[$clientKey]
+    $clientDisplayName = $clientConfig.displayName
+
+    $clientAppId = Invoke-AzTsv "ad app list --display-name `"$clientDisplayName`" --query `"[0].appId`""
+    if (-not $clientAppId) {
+        Write-Host "  -> lege '$clientDisplayName' an"
+        $clientAppId = Invoke-AzTsv "ad app create --display-name `"$clientDisplayName`" --sign-in-audience AzureADMyOrg --query appId"
+        if (-not $clientAppId) {
+            throw "az ad app create fuer '$clientDisplayName' hat keine appId zurueckgegeben."
+        }
+    }
+    else {
+        Write-Host "  -> '$clientDisplayName' existiert bereits ($clientAppId), aktualisiere Konfiguration"
+    }
+
+    # WICHTIG: "web"-Plattform + Public-Client-Flows erlauben (nicht "spa"), siehe Kommentar in
+    # terraform/modules/entra-id/main.tf und docs/DEPLOYMENT.md ("MCP OAuth Clients") fuer die
+    # AADSTS7000218/AADSTS9002325-Historie dieser Entscheidung.
+    az ad app update --id $clientAppId --set publicClient='{"redirectUris":[]}' | Out-Null
+    if ($clientConfig.redirectUris.Count -gt 0) {
+        $webBody = @{
+            redirectUris          = @($clientConfig.redirectUris)
+            implicitGrantSettings = @{ enableAccessTokenIssuance = $false; enableIdTokenIssuance = $false }
+        }
+        Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications/$((Invoke-AzJson "ad app show --id $clientAppId").id)" -Body @{
+            web                        = $webBody
+            isFallbackPublicClient     = $true
+            requiredResourceAccess     = @(
+                @{
+                    resourceAppId  = $mcpAppId
+                    resourceAccess = @(@{ id = $mcpAccessScopeId; type = "Scope" })
+                }
+            )
+        }
+    }
+    else {
+        Write-Host "     (keine Redirect-URI angegeben - $clientDisplayName wird ohne Redirect-URI angelegt, spaeter per scripts/Add-McpOauthRedirectUri.ps1 ergaenzen)" -ForegroundColor DarkYellow
+        Invoke-GraphRestPatch -Uri "https://graph.microsoft.com/v1.0/applications/$((Invoke-AzJson "ad app show --id $clientAppId").id)" -Body @{
+            isFallbackPublicClient = $true
+            requiredResourceAccess = @(
+                @{
+                    resourceAppId  = $mcpAppId
+                    resourceAccess = @(@{ id = $mcpAccessScopeId; type = "Scope" })
+                }
+            )
+        }
+    }
+
+    if (-not (Invoke-AzTsv "ad sp show --id $clientAppId --query id")) {
+        az ad sp create --id $clientAppId | Out-Null
+    }
+    $clientSpId = Invoke-AzTsv "ad sp show --id $clientAppId --query id"
+
+    # Delegated Permission Grant (Admin Consent fuer Mcp.Access) - Public-Client-Flows haben
+    # keinen Client Secret, daher ist admin-consent der einzige Weg, den Scope freizugeben.
+    Invoke-GraphRestPost -Uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants" -Body @{
+        clientId    = $clientSpId
+        consentType = "AllPrincipals"
+        resourceId  = $mcpSpId
+        scope       = $McpAccessScopeValue
+    } | Out-Null
+
+    $mcpOAuthClientIds[$clientKey] = $clientAppId
+
+    if ($kvExists) {
+        az keyvault secret set --vault-name $KeyVaultName --name "$clientKey-mcp-client-id" --value $clientAppId -o none 2>$null
+    }
+}
+
 # --- Admin Consent fuer Delegated Scope + alle App-only Permissions ---
 Write-Host "  -> erteile Admin-Consent"
 az ad app permission admin-consent --id $mcpAppId 2>$null | Out-Null
@@ -239,9 +365,6 @@ if ($LASTEXITCODE -ne 0) {
 # --- Client Secret fuer mcp-server erzeugen und in Key Vault ablegen ---
 Write-Host "  -> erzeuge Client Secret fuer '$McpAppName'"
 $mcpSecret = Invoke-AzTsv "ad app credential reset --id $mcpAppId --display-name `"mvp-secret-$Environment`" --years 1 --query password"
-
-$null = az keyvault show --name $KeyVaultName -o none 2>$null
-$kvExists = ($LASTEXITCODE -eq 0)
 
 if ($kvExists) {
     az keyvault secret set --vault-name $KeyVaultName --name "mcp-server-client-secret" --value $mcpSecret | Out-Null
@@ -272,8 +395,10 @@ $desiredState = @{
         displayName             = $McpAppName
         signInAudience          = "AzureADMyOrg"
         redirectUris            = @($mcpRedirectUri)
+        delegatedScopes         = @($McpAccessScopeValue)
         graphAppOnlyPermissions = $GraphAppOnlyPermissions
     }
+    mcpOAuthClients = $mcpOAuthClientIds
     grants = @{
         appRoleAssignment = @{ from = $McpAppName; to = $ApiAppName; role = $AppRoleValue }
         delegatedGrant    = @{ from = $McpAppName; to = $ApiAppName; scope = $DelegatedScopeValue }
