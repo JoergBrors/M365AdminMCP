@@ -183,10 +183,6 @@ locals {
       display_name  = "claude-mcp-client-${var.environment_name}"
       redirect_uris = var.claude_mcp_redirect_uris
     }
-    copilot = {
-      display_name  = "copilot-mcp-client-${var.environment_name}"
-      redirect_uris = var.copilot_mcp_redirect_uris
-    }
   }
 }
 
@@ -236,9 +232,51 @@ resource "azuread_service_principal" "mcp_oauth_client" {
   client_id = each.value.client_id
 }
 
-# Kein Client Secret fuer diese Apps: SPA/public-client + PKCE braucht keins (siehe Kommentar
-# oben bei azuread_application.mcp_oauth_client) - ChatGPT/Claude/Copilot Studio senden am
-# Token-Endpunkt "Authentifizierungsmethode: none".
+# Kein Client Secret fuer diese Apps: public-client + PKCE braucht keins (siehe Kommentar oben
+# bei azuread_application.mcp_oauth_client) - ChatGPT/Claude senden am Token-Endpunkt
+# "Authentifizierungsmethode: none".
+
+# --- Copilot Studio: eigener confidential client (Sonderfall) ---
+#
+# Copilot Studios "Manuell"-Konfigurationstyp fuer OAuth-2.0-MCP-Connectors verlangt zwingend
+# ein "Geheimer Clientschluessel"-Feld (Pflichtfeld im UI) - anders als ChatGPT/Claude, die
+# einen echten public client (Authentifizierungsmethode "none") nutzen. Um das zu bedienen,
+# braucht dieser Client eine "web"-Redirect-URI (siehe Kommentar oben: eine "web"-Redirect-URI
+# zwingt Entra IMMER zu confidential-client-Verhalten, unabhaengig von
+# fallback_public_client_enabled) statt der public_client-Plattform der anderen MCP-Clients.
+resource "azuread_application" "copilot_mcp_oauth_client" {
+  display_name     = "copilot-mcp-client-${var.environment_name}"
+  sign_in_audience = "AzureADMyOrg"
+
+  web {
+    redirect_uris = var.copilot_mcp_redirect_uris
+  }
+
+  required_resource_access {
+    resource_app_id = azuread_application.mcp.client_id
+
+    resource_access {
+      id   = azuread_application.mcp.oauth2_permission_scope_ids["Mcp.Access"]
+      type = "Scope"
+    }
+  }
+}
+
+resource "azuread_service_principal" "copilot_mcp_oauth_client" {
+  client_id = azuread_application.copilot_mcp_oauth_client.client_id
+}
+
+resource "azuread_application_password" "copilot_mcp_oauth_client" {
+  application_id    = azuread_application.copilot_mcp_oauth_client.id
+  display_name      = "terraform-managed-secret-${var.environment_name}"
+  end_date_relative = "8760h"
+}
+
+resource "azuread_service_principal_delegated_permission_grant" "copilot_mcp_oauth_client_delegated_to_mcp" {
+  service_principal_object_id          = azuread_service_principal.copilot_mcp_oauth_client.object_id
+  resource_service_principal_object_id = azuread_service_principal.mcp.object_id
+  claim_values                         = ["Mcp.Access", "offline_access"]
+}
 
 # --- Admin Consent / App Role Assignments (App-only) ---
 

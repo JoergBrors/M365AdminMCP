@@ -21,6 +21,17 @@ builder.Services.AddSingleton<ApiServerClient>();
 builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 
+// Manche MCP-Clients (u.a. Copilot Studios "Dynamisch mit Ermittlung") fuehren die OAuth-
+// Discovery browserseitig aus dem Maker-Portal heraus aus - ohne CORS scheitert der Preflight
+// (OPTIONS) bereits im Browser, bevor ueberhaupt ein Request am Server ankommt bzw. geloggt wird.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("McpDiscovery", policy => policy
+        .AllowAnyOrigin()
+        .WithMethods("GET", "POST", "OPTIONS")
+        .WithHeaders("Content-Type", "Authorization"));
+});
+
 var requireMcpAuthentication = builder.Configuration.GetValue("McpAuth:RequireAuthentication", true);
 if (requireMcpAuthentication)
 {
@@ -88,6 +99,8 @@ builder.Services
     .WithTools<M365AdoptionCatalogTool>();
 
 var app = builder.Build();
+
+app.UseCors("McpDiscovery");
 
 if (requireMcpAuthentication)
 {

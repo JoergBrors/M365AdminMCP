@@ -183,11 +183,33 @@ public static class OAuthProxy
             ["id_token_signing_alg_values_supported"] = ReadStringArray(root, "id_token_signing_alg_values_supported"),
             ["code_challenge_methods_supported"] = ReadStringArray(root, "code_challenge_methods_supported") ?? ["S256"],
             ["grant_types_supported"] = ReadStringArray(root, "grant_types_supported") ?? ["authorization_code", "refresh_token"],
-            ["scopes_supported"] = ReadStringArray(root, "scopes_supported"),
+            // Entras eigenes scopes_supported listet nur die generischen OIDC-Scopes
+            // (openid/profile/email/offline_access), NICHT den App-spezifischen MCP-Scope
+            // (api://.../Mcp.Access) - der wird hier ergaenzt, sonst werten manche strikten
+            // Clients (u.a. Copilot Studio bei "Dynamisch mit Ermittlung") das Fehlen als
+            // "Scope wird nicht angeboten" und fragen ihn beim Autorisieren nicht an.
+            ["scopes_supported"] = (ReadStringArray(root, "scopes_supported") ?? [])
+                .Append(GetMcpScope(configuration))
+                .Distinct()
+                .ToArray(),
             ["token_endpoint_auth_methods_supported"] = new[] { "none" },
         };
 
         return Results.Json(metadata);
+    }
+
+    private static string GetMcpScope(IConfiguration configuration)
+    {
+        var configuredScope = configuration["McpAuth:Scope"];
+        if (!string.IsNullOrWhiteSpace(configuredScope))
+        {
+            return configuredScope;
+        }
+
+        var audience = configuration["AzureAd:Audience"];
+        return string.IsNullOrWhiteSpace(audience)
+            ? "Mcp.Access"
+            : $"{audience}/Mcp.Access";
     }
 
     private static string[]? ReadStringArray(JsonElement root, string propertyName)

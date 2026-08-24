@@ -29,9 +29,15 @@ output "mcp_app_client_secret" {
 }
 
 output "mcp_oauth_client_ids" {
-  value = {
-    for key, app in azuread_application.mcp_oauth_client : key => app.client_id
-  }
+  value = merge(
+    { for key, app in azuread_application.mcp_oauth_client : key => app.client_id },
+    { copilot = azuread_application.copilot_mcp_oauth_client.client_id }
+  )
+}
+
+output "copilot_mcp_client_secret" {
+  value     = azuread_application_password.copilot_mcp_oauth_client.value
+  sensitive = true
 }
 
 output "tenant_id" {

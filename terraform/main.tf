@@ -39,13 +39,14 @@ module "infra" {
   app_service_sku              = var.app_service_sku
   log_analytics_daily_quota_gb = var.log_analytics_daily_quota_gb
 
-  api_app_id             = module.entra_id.api_app_id
-  api_app_identifier_uri = module.entra_id.api_app_identifier_uri
-  api_app_client_secret  = module.entra_id.api_app_client_secret
-  swagger_client_app_id  = module.entra_id.swagger_client_app_id
-  tenant_id              = module.entra_id.tenant_id
-  mcp_app_id             = module.entra_id.mcp_app_id
-  mcp_app_identifier_uri = module.entra_id.mcp_app_identifier_uri
-  mcp_app_client_secret  = module.entra_id.mcp_app_client_secret
-  mcp_oauth_client_ids   = module.entra_id.mcp_oauth_client_ids
+  api_app_id                = module.entra_id.api_app_id
+  api_app_identifier_uri    = module.entra_id.api_app_identifier_uri
+  api_app_client_secret     = module.entra_id.api_app_client_secret
+  swagger_client_app_id     = module.entra_id.swagger_client_app_id
+  tenant_id                 = module.entra_id.tenant_id
+  mcp_app_id                = module.entra_id.mcp_app_id
+  mcp_app_identifier_uri    = module.entra_id.mcp_app_identifier_uri
+  mcp_app_client_secret     = module.entra_id.mcp_app_client_secret
+  mcp_oauth_client_ids      = module.entra_id.mcp_oauth_client_ids
+  copilot_mcp_client_secret = module.entra_id.copilot_mcp_client_secret
 }

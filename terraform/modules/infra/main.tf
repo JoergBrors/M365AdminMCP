@@ -94,6 +94,13 @@ resource "azurerm_key_vault_secret" "mcp_oauth_client_id" {
   depends_on   = [azurerm_role_assignment.deployer_kv_admin]
 }
 
+resource "azurerm_key_vault_secret" "copilot_mcp_client_secret" {
+  name         = "copilot-mcp-client-secret"
+  value        = var.copilot_mcp_client_secret
+  key_vault_id = azurerm_key_vault.this.id
+  depends_on   = [azurerm_role_assignment.deployer_kv_admin]
+}
+
 # --- App Service ---
 
 locals {

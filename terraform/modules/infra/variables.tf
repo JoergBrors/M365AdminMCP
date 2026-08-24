@@ -63,3 +63,9 @@ variable "mcp_oauth_client_ids" {
   type    = map(string)
   default = {}
 }
+
+variable "copilot_mcp_client_secret" {
+  description = "Client Secret des Copilot-Studio-OAuth-Clients (confidential client - siehe Kommentar in modules/entra-id/main.tf)."
+  type        = string
+  sensitive   = true
+}

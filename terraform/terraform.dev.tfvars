@@ -12,3 +12,11 @@ chatgpt_mcp_redirect_uris = [
 claude_mcp_redirect_uris = [
   "https://claude.ai/api/mcp/auth_callback"
 ]
+
+# Power Platform Custom-Connector-OAuth-Callback fuer Copilot Studio. Falls der Dialog beim
+# Verbinden eine abweichende/tenant-spezifische Callback-URL anzeigt, diese hier ergaenzen statt
+# ersetzen (mehrere Werte moeglich).
+copilot_mcp_redirect_uris = [
+  "https://global.consent.azure-apim.net/redirect",
+  "https://global.consent.azure-apim.net/redirect/crea8-5fmcpservero365-5f6a2fde1466b59a2e"
+]
