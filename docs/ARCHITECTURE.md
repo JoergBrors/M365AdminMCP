@@ -26,11 +26,49 @@ Zwei Entra-ID-App-Registrierungen:
    - Validiert Tokens über `Microsoft.Identity.Web` – ein `AuthorizationPolicy` akzeptiert entweder `roles`-Claim (App-only) **oder** `scp`-Claim (delegated)
 
 2. **`mcp-server` (Client App)**
-   - **Application Permission** auf `api-server` → `Tasks.ReadWrite.All` (muss von einem Admin per App-Role-Assignment freigegeben werden – das übernimmt `Set-EntraIdApps.ps1`)
+   - **Application Permission** auf `api-server` → `Tasks.ReadWrite.All` (App-Role-Assignment, per Admin Consent freigegeben – das übernimmt `terraform/modules/entra-id`)
    - **Delegated Permission** auf `api-server` → `Tasks.ReadWrite`
    - Redirect URI für den Auth-Code-Flow (z. B. `https://<mcp-app>.azurewebsites.net/signin-oidc`)
-   - Client Secret (im MVP) bzw. Zertifikat (empfohlen für Produktion), abgelegt im Key Vault
+   - Client Secret (aktuell), Zertifikat wäre die härtere Alternative für Produktion, abgelegt im Key Vault
    - Führt bei delegated Anfragen einen **On-Behalf-Of (OBO)** Flow aus, um im Namen des Nutzers gegen den API Server zu rufen; bei App-only-Anfragen nutzt er **Client Credentials**
+
+3. **Externe MCP-OAuth-Clients** (`chatgpt-mcp-client-<env>`, `claude-mcp-client-<env>`, `copilot-mcp-client-<env>`)
+   - Eigene App-Registrierungen, die es einem externen Chat-Client (ChatGPT, Claude, Copilot Studio) erlauben, sich per OAuth Authorization Code + PKCE gegen den MCP-Server zu authentifizieren, ohne dass der Client selbst Zugriff auf die `mcp-server`-App-Registrierung oder deren Secret hat
+   - ChatGPT/Claude sind **Public Clients** (kein Secret, PKCE-only), Copilot Studio ist ein **Confidential Client** (mit Secret, da die Power-Platform-OAuth-UI ein Secret-Feld zwingend verlangt) — siehe [`docs/ENTRA-ID-SETUP.md`](ENTRA-ID-SETUP.md) für die genaue Begründung
+   - Details zur OAuth-Proxy-Fassade, die diese Clients vor den Entra-ID-Eigenheiten (kein RFC 8707, kein DCR/CIMD) abschirmt, siehe unten
+
+## Komponente: OAuth-Proxy-Fassade (`src/McpServer/Auth/OAuthProxy.cs`)
+
+Der MCP-Autorisierungs-Standard (RFC 8707/9728) verlangt, dass Clients einen `resource`-Parameter mit der kanonischen MCP-Server-URL an `/authorize` und `/token` senden. **Entra ID implementiert RFC 8707 nicht** und lehnt jeden `resource`-Wert, der nicht die eigene App-ID-URI ist, mit `AADSTS9010010` ab. Claude sendet `resource` (ChatGPT nicht) – ohne Fassade schlägt der Verbindungsaufbau für Claude deshalb fehl.
+
+Der MCP-Server serviert deshalb eine eigene, dünne Authorization-Server-Fassade auf seiner eigenen Origin (Endpunkte per `app.MapOAuthProxyEndpoints()` in `Program.cs` registriert):
+
+```text
+GET  /.well-known/oauth-authorization-server   -> synthetisiertes RFC-8414-Dokument (issuer/jwks_uri
+                                                    von Entra übernommen, authorization_endpoint/
+                                                    token_endpoint zeigen auf sich selbst)
+GET  /authorize   -> entfernt "resource" aus der Query, 302-Redirect zu Entras echtem /authorize
+GET  /.well-known/oauth-protected-resource      -> RFC-9728-Dokument, "resource" = eigene /mcp-URL,
+                                                    "authorization_servers" = eigene Origin (nicht Entra direkt)
+POST /token       -> entfernt "resource" aus dem Form-Body, leitet serverseitig an Entras echtes
+                      /token weiter, gibt Status/Body 1:1 zurück (inkl. Fehler-JSON)
+```
+
+Die Fassade terminiert PKCE **nicht** selbst – `code_challenge`/`code_verifier` laufen unverändert Ende-zu-Ende zwischen Client und Entra durch, es wird kein eigenes Secret/State gehalten oder geloggt. Ausführliche Herleitung inkl. der drei durchlaufenen Entra-Fallstricke (AADSTS7000218, AADSTS9002325, AADSTS65001) siehe [`docs/DEPLOYMENT.md`](DEPLOYMENT.md), Abschnitt "OAuth-Proxy-Fassade".
+
+## MCP-Tool-Katalog (`src/McpServer/Tools/`)
+
+Fünf `[McpServerToolType]`-Klassen, registriert in `Program.cs` über `.AddMcpServer().WithHttpTransport().WithTools<...>()`:
+
+| Klasse | Tool-Methoden | Zweck |
+|---|---|---|
+| `TasksTool` | `GetTasksAppOnly()`, `GetTasksDelegated(incomingUserAccessToken)` | Demo-/Referenz-Endpoint für beide Auth-Flows (App-only vs. delegated/OBO) |
+| `M365StatusTool` | `GetServiceHealthOverview()`, `GetServiceHealthDetail(serviceHealthId, ...)`, `GetDegradedServiceHealthDetails()`, `GetServiceHealthIssues()` | Office 365 Service Health (tenant-weit, app-only) |
+| `M365MessagesTool` | `GetMessageCenterMessages(odataFilter?)` | Message-Center-Nachrichten (tenant-weit, app-only) |
+| `M365AdoptionTool` | `GetOffice365ActiveUserDetail(period?)`, `GetM365AppUserDetail(period?)` | Die zwei am häufigsten gebrauchten Adoption-Reports als eigene, stark-typisierte Tools |
+| `M365AdoptionCatalogTool` | `ListAdoptionReports(category?)`, `GetAdoptionReport(reportName, period?, date?, serviceArea?, appId?)` | Generischer Zugriff auf **alle 92** Adoption-/Usage-Report-Endpunkte, siehe unten |
+
+Jede Tool-Methode ist mit `[McpServerTool, Description("...")]` annotiert; Parameter tragen eigene `[Description("...")]`-Attribute, die vom MCP-Protokoll als Tool-Schema an den Client (LLM) exponiert werden. Neue Tools folgen exakt diesem Muster – siehe [`AGENTS.md`](../AGENTS.md), Abschnitt "Neues MCP-Tool hinzufügen", für die Schritt-für-Schritt-Anleitung.
 
 ## Offene Architektur-Fragen (bitte vor dem produktiven Rollout klären)
 

@@ -1,8 +1,10 @@
 # Deployment
 
-Es gibt zwei vollständige, unabhängige Deployment-Wege im Repo: **Terraform** (`terraform/`, empfohlen)
-und **Bicep** (`infra/`, Alternative). Beide erzeugen dieselbe Zielarchitektur. Bitte nicht gleichzeitig
-gegen dieselbe Umgebung laufen lassen (unterschiedliche State-Verwaltung → Konflikte).
+**Terraform** (`terraform/`) ist der einzige aktiv gepflegte und über CI/CD verdrahtete Deployment-Weg.
+Ein älterer, paralleler **Bicep**-Weg (`infra/`) existiert noch im Repo, ist aber Legacy (siehe
+[Legacy: Bicep-Weg](#legacy-bicep-weg) am Ende dieses Dokuments) und läuft nicht in
+`.github/workflows/deploy.yml`. Beide Wege erzeugen dieselbe Zielarchitektur, verwalten aber getrennten
+State – niemals beide gleichzeitig gegen dieselbe Umgebung laufen lassen.
 
 Alle Skripte liegen als PowerShell 7 (`.ps1`) vor und laufen identisch unter macOS, Windows und Linux
 (`pwsh`). Fehlende CLIs (`az`, `gh`, `terraform`) installiert `Install-Prerequisites.ps1` automatisch.
@@ -45,7 +47,113 @@ siehe `infra/parameters/main.example.bicepparam.example` bzw. `terraform/terrafo
 weiteren Logs mehr annimmt**, bis die UTC-Tagesgrenze erreicht ist – bei Diagnose-Bedarf mit viel Traffic
 das Limit temporär erhöhen oder auf `-1` setzen.
 
-## Weg 1: Terraform (empfohlen)
+## Terraform: Was genau in Azure bereitgestellt wird
+
+Ein `terraform apply` gegen `terraform.<env>.tfvars` legt in **einem gemeinsamen State** sowohl
+Azure-Ressourcen (`azurerm_*`) als auch Entra-ID-Objekte (`azuread_*`) an. Alle Namen verwenden das
+Präfix `entramcp-<environment_name>` (kurz `name_prefix`).
+
+### Azure-Ressourcen (`terraform/modules/infra/`)
+
+| Ressource | Name-Schema | Zweck / wichtige Parameter |
+|---|---|---|
+| `azurerm_resource_group.this` (Root-Modul) | `rg-entramcp-<env>` | Container für alle Azure-Ressourcen dieser Umgebung |
+| `azurerm_service_plan.this` | `<name_prefix>-plan` | Linux App Service Plan. SKU aus `var.app_service_sku` (Dev-Default: `F1` Free-Tier – kein Always-On, App schläft nach Inaktivität ein) |
+| `azurerm_linux_web_app.api` | `<name_prefix>-api` | Hosting des ApiServer. `.NET 10.0`-Stack, `https_only = true`, **System-Assigned Managed Identity**, App Settings inkl. `AzureAd__ClientSecret` als Key-Vault-Reference |
+| `azurerm_linux_web_app.mcp` | `<name_prefix>-mcp` | Hosting des McpServer. Analog zu oben, zusätzlich `McpAuth__ExternalBaseUrl`, `ApiServer__BaseUrl` (zeigt auf die ApiServer-Web-App) |
+| `azurerm_key_vault.this` | `<name_prefix>-kv-<4-stelliges-zufalls-suffix>` (max. 24 Zeichen) | Secret-Storage. `enable_rbac_authorization = true` (kein Access-Policy-Modell), `purge_protection_enabled = true`, `soft_delete_retention_days = 7` |
+| `azurerm_key_vault_secret.*` (6 Secrets + `for_each` über OAuth-Client-IDs) | `mcp-server-client-secret`, `api-server-client-secret`, `api-server-app-id`, `mcp-server-app-id`, `<chatgpt\|claude\|copilot>-mcp-client-id`, `copilot-mcp-client-secret` | Ablage der Entra-Werte im Key Vault, damit die Web-Apps sie per Key-Vault-Reference lesen können |
+| `azurerm_log_analytics_workspace.this` | `<name_prefix>-law` | SKU `PerGB2018`, Retention 30 Tage, `daily_quota_gb = var.log_analytics_daily_quota_gb` (Dev-Default: `1` GB/Tag, harter Kostendeckel) |
+| `azurerm_application_insights.this` | `<name_prefix>-appi` | APM für beide Web-Apps, nutzt obigen Log Analytics Workspace als Backend |
+| `azurerm_role_assignment.deployer_kv_admin` | — | RBAC: Der **ausführende Deployer** (lokaler User oder CI-Service-Principal, `data.azurerm_client_config.current.object_id`) erhält **Key Vault Secrets Officer** auf den Key Vault – nötig, damit Terraform selbst die Secrets oben schreiben kann |
+| `azurerm_role_assignment.api_kv_secrets_user` / `.mcp_kv_secrets_user` | — | RBAC: Die **Managed Identity** der jeweiligen Web-App erhält **Key Vault Secrets User**, damit die Key-Vault-Reference-App-Settings zur Laufzeit aufgelöst werden können |
+| `azuread_app_role_assignment.mcp_managed_identity_to_api_task_readwrite` | — | Production-Pendant zum Client-Secret-Flow: MCP-Web-App-Managed-Identity → `api-server` App Role `Tasks.ReadWrite.All` |
+| `azuread_app_role_assignment.api_managed_identity_to_graph_*` (3x) | — | Production-Pendant: API-Web-App-Managed-Identity → Microsoft Graph App Roles `ServiceHealth.Read.All`, `ServiceMessage.Read.All`, `Reports.Read.All` |
+
+### Entra-ID-Objekte (`terraform/modules/entra-id/`)
+
+Siehe [`docs/ENTRA-ID-SETUP.md`](ENTRA-ID-SETUP.md) für die vollständige Liste aller App-Registrierungen, App-Roles, Delegated Scopes und Permission-Grants.
+
+### Terraform-Outputs (Root-Modul, `terraform/outputs.tf`)
+
+| Output | Bedeutung |
+|---|---|
+| `api_app_hostname` / `mcp_app_hostname` | `*.azurewebsites.net`-Hostname der jeweiligen Web-App – wird von `deploy.yml` genutzt, um den ZIP-Deploy-Zielnamen zu ermitteln |
+| `key_vault_name` | Name des Key Vault dieser Umgebung |
+| `api_app_id` / `mcp_app_id` | Client-IDs der jeweiligen App-Registrierung |
+| `api_app_identifier_uri` / `mcp_app_identifier_uri` | `api://api-server-<env>` bzw. `api://mcp-server-<env>` |
+| `api_app_client_secret` | (sensitive) Client-Secret der `api-server`-App |
+| `swagger_client_app_id` | Client-ID des Swagger-SPA-Clients |
+| `mcp_oauth_client_ids` | Map `{chatgpt, claude, copilot} -> client_id` |
+
+### Terraform-Variablen (Root-Modul, `terraform/variables.tf`)
+
+| Variable | Default | Zweck |
+|---|---|---|
+| `environment_name` | *(Pflicht)* | Kurzname der Umgebung (`dev`/`staging`/`prod`), fließt in alle Ressourcennamen |
+| `location` | `westeurope` | Azure-Region |
+| `app_service_sku` | `F1` | App Service Plan SKU. Für `staging`/`prod` z. B. `B1`/`S1` wegen "Always On" + SLA |
+| `log_analytics_daily_quota_gb` | `1` | Kostendeckel für Log-Ingestion (GB/Tag). Für `staging`/`prod` z. B. `-1` (kein Limit) |
+| `chatgpt_mcp_redirect_uris` / `claude_mcp_redirect_uris` / `copilot_mcp_redirect_uris` | `[]` | Redirect-URIs der jeweiligen externen OAuth-Clients |
+
+## Berechtigungs-Bootstrap für CI/CD (einmalig pro neuer Umgebung/neuem Service Principal)
+
+Damit GitHub Actions Terraform gegen Azure/Entra ID ausführen kann, braucht die dort per OIDC
+authentifizierte Identität (App-Registrierung + Service Principal, referenziert über die Repo-Secrets
+`AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/`AZURE_SUBSCRIPTION_ID`) eine Reihe von Berechtigungen, die
+**Terraform selbst nicht verwalten kann** (zirkulär – der Principal, der die Rechte braucht, kann sie sich
+nicht selbst geben, solange er sie noch nicht hat). Das ist ein einmaliger, manueller Vorbereitungsschritt
+außerhalb von Terraform:
+
+1. **GitHub OIDC Federated Identity Credential** auf der App-Registrierung (nicht Client-Secret-basiert):
+
+   ```powershell
+   az ad app federated-credential create --id <app-object-id> --parameters '{
+     "name": "github-actions-dev-environment",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "subject": "repo:<owner>/<repo>:environment:dev",
+     "audiences": ["api://AzureADTokenExchange"]
+   }'
+   ```
+
+   **Achtung Subject-Format:** Bei manchen Repos (z. B. nach einer Umbenennung) verwendet GitHub statt
+   `repo:<owner>/<repo>:environment:dev` das Format `repo:<owner>@<ownerId>/<repo>@<repoId>:environment:dev`
+   (mit numerischen IDs). Steht im Subject-Feld der Fehlermeldung `AADSTS700213: No matching federated
+   identity record found for presented assertion subject '...'` beim Pipeline-Lauf – der dort angezeigte
+   exakte Subject-String muss 1:1 übernommen werden. Owner-/Repo-ID ermitteln mit:
+   `gh api repos/<owner>/<repo> --jq '{id: .id, owner_id: .owner.id}'`. Für den `terraform-plan`-Job (läuft
+   bei `pull_request`, kein `environment:`-Suffix) zusätzlich eine zweite Credential mit Subject
+   `repo:<owner>/<repo>:pull_request` (bzw. dem entsprechenden `owner@id/repo@id`-Format) anlegen.
+
+2. **Azure-RBAC-Rollen** auf der Subscription:
+   - **Storage Account Contributor** auf dem Terraform-State-Storage-Account (Resource Group `rg-tfstate`) – nötig für `terraform init`/State-Zugriff
+   - **Contributor** auf der Ziel-Resource-Group (`rg-entramcp-<env>`) – nötig, um App Service Plan, Web Apps, Key Vault, Log Analytics anzulegen
+   - **Role Based Access Control Administrator**, scope-begrenzt auf den Key Vault dieser Umgebung – nötig, damit Terraform die `azurerm_role_assignment.*`-Ressourcen (Secrets-Officer/-User) selbst verwalten kann. Ohne diese Rolle scheitert `terraform apply` mit `AuthorizationFailed` auf `Microsoft.Authorization/roleAssignments/*`.
+   - **Key Vault Secrets Officer** auf dem Key Vault – wird von Terraform selbst über `azurerm_role_assignment.deployer_kv_admin` verwaltet, muss aber beim **allerersten** Lauf einmalig manuell vorab gesetzt werden (Henne-Ei-Problem: der `terraform plan`-Schritt liest bereits bestehende Secrets, bevor der Apply-Schritt die Rolle setzen könnte). Danach per `terraform import module.infra.azurerm_role_assignment.deployer_kv_admin <role-assignment-resource-id>` in den State übernehmen, damit Terraform die Ressource fortan selbst verwaltet statt sie erneut anzulegen (`RoleAssignmentExists`-Fehler) oder sie fälschlich zu ersetzen.
+
+3. **Microsoft-Graph-Anwendungsberechtigungen** (App-Rollen auf dem Microsoft-Graph-Service-Principal), da der `azuread`-Terraform-Provider App-Registrierungen/Service-Principals/Permission-Grants verwaltet:
+   - `Application.ReadWrite.All`
+   - `Directory.Read.All`
+
+   Diese Rollen per Graph-API direkt zuweisen (nicht nur im App-Manifest unter `requiredResourceAccess`
+   eintragen – `az ad app permission admin-consent` aktiviert **Application**-Permissions/App-Roles
+   erfahrungsgemäß nicht zuverlässig, nur delegierte Scopes):
+
+   ```powershell
+   $spObjectId = az ad sp show --id <app-id> --query id -o tsv
+   $graphSpId  = az ad sp show --id 00000003-0000-0000-c000-000000000000 --query id -o tsv
+   az rest --method post --url "https://graph.microsoft.com/v1.0/servicePrincipals/$spObjectId/appRoleAssignments" `
+     --body "{`"principalId`":`"$spObjectId`",`"resourceId`":`"$graphSpId`",`"appRoleId`":`"1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9`"}"  # Application.ReadWrite.All
+   ```
+
+   Alternativ (gröber, deckt mehr ab als nötig): dem Service Principal die **Entra-ID-Verzeichnisrolle**
+   `Application Administrator` zuweisen statt granularer Graph-App-Permissions.
+
+4. Nach jedem dieser Schritte kann `terraform apply` erneut ausgeführt werden – Rollenzuweisungen und
+   OAuth-Token-Caches brauchen manchmal 1–2 Minuten, bis sie propagiert sind (`AADSTS`/`AuthorizationFailed`
+   direkt nach der Zuweisung ist meist ein Propagations-Timing-Problem, kein dauerhafter Fehler).
+
+## Terraform: Laufender Betrieb (Ablauf)
 
 ### Einmalige Vorbereitung
 
@@ -144,11 +252,13 @@ copilot_mcp_redirect_uris = [
 
 Terraform erstellt getrennte OAuth Client Apps:
 
-| Client | Terraform Output / `.env` | Key Vault Secret |
-|---|---|---|
-| ChatGPT | `CHATGPT_MCP_CLIENT_ID` | `chatgpt-mcp-client-secret` |
-| Claude | `CLAUDE_MCP_CLIENT_ID` | `claude-mcp-client-secret` |
-| Copilot Studio | `COPILOT_MCP_CLIENT_ID` | `copilot-mcp-client-secret` |
+| Client | Client-Typ | Terraform Output / `.env` | Key Vault Secrets |
+|---|---|---|---|
+| ChatGPT | Public Client (PKCE, kein Secret) | `CHATGPT_MCP_CLIENT_ID` | `chatgpt-mcp-client-id` |
+| Claude | Public Client (PKCE, kein Secret) | `CLAUDE_MCP_CLIENT_ID` | `claude-mcp-client-id` |
+| Copilot Studio | Confidential Client (mit Secret) | `COPILOT_MCP_CLIENT_ID` | `copilot-mcp-client-id`, `copilot-mcp-client-secret` |
+
+ChatGPT und Claude erhalten **kein** Secret im Key Vault, da sie als Public Clients (`fallback_public_client_enabled = true`, reine PKCE-Absicherung) registriert sind. Nur Copilot Studio ist ein Confidential Client mit eigenem Client-Secret, weil die Power-Platform-OAuth-UI ("Benutzerdefinierter Connector") ein Secret-Feld zwingend verlangt – siehe `terraform/modules/entra-id/main.tf`, Ressourcen `azuread_application.mcp_oauth_client` (chatgpt/claude, `for_each`) vs. `azuread_application.copilot_mcp_oauth_client` (eigener Block mit `web`-Plattform statt `public_client`).
 
 Alle drei Clients verwenden denselben Scope:
 
@@ -186,7 +296,12 @@ Connector-UI ein, wie im Screenshot des ChatGPT-Connectors ("Benutzerdefinierter
 "OAuth-Client-ID"). Eine Alternative wäre ein selbst betriebener DCR/CIMD-Proxy vor Entra ID – für dieses
 MVP bewusst nicht umgesetzt, da er zusätzliche Angriffsfläche und Betriebsaufwand bedeutet.
 
-## Weg 2: Bicep (Alternative)
+## Legacy: Bicep-Weg
+
+> **Nicht mehr aktiv gepflegt.** Läuft nicht in `.github/workflows/deploy.yml`. Für alles Neue Terraform
+> (oben) verwenden. Dieser Abschnitt bleibt als Referenz stehen, falls die Bicep-Dateien im Repo als
+> Ideengeber gebraucht werden (u. a. für die Microsoft-Graph-Bicep-Extension, siehe
+> [`docs/ENTRA-ID-SETUP.md`](ENTRA-ID-SETUP.md), Weg B).
 
 Parameterdateien liegen in `infra/parameters/`, eine pro Umgebung (`main.dev.bicepparam` liegt bereits
 im Repo). Für weitere Umgebungen `infra/parameters/main.example.bicepparam.example` nach
@@ -227,19 +342,26 @@ Installiert `gh` automatisch, falls nicht vorhanden, meldet bei Bedarf per `gh a
 
 ## Ablauf (CI/CD, GitHub Actions)
 
-`.github/workflows/deploy.yml`:
-- **Pull Request** → Build + Unit Tests + `az deployment ... what-if` (via `Invoke-BicepWhatIf.ps1`, `shell: pwsh`) → Ergebnis als PR-Kommentar
-- **Merge nach `main`** → Deployment in `dev` automatisch; `staging`/`prod` über GitHub Environments mit **Required Reviewers** (manuelle Freigabe), jeweils erneut mit What-If-Gate direkt davor
+`.github/workflows/deploy.yml` hat drei Jobs, Trigger sind ausschließlich `pull_request`/`push` auf `main`:
 
-GitHub-gehostete Runner (`ubuntu-latest`, `windows-latest`, `macos-latest`) haben PowerShell 7 vorinstalliert –
-`shell: pwsh` funktioniert auf allen dreien identisch, ohne zusätzliche Setup-Schritte.
+1. **`build`** (immer): Checkout, .NET-10-Setup, `dotnet build EntraMcpMvp.sln`. Kein separater Unit-Test-Step im Workflow.
+2. **`terraform-plan`** (nur bei `pull_request`, braucht `build`): `azure/login@v2` (OIDC), `./scripts/Invoke-TerraformPlan.ps1 -Environment dev`, postet den erzeugten Markdown-Report als PR-Kommentar (`actions/github-script@v7`).
+3. **`deploy-dev`** (nur bei `push` auf `main`, `environment: dev`, braucht `build`): `azure/login@v2` (OIDC), `./scripts/Invoke-TerraformApply.ps1 -Environment dev -AutoApprove`, liest die Terraform-Outputs `api_app_hostname`/`mcp_app_hostname`, führt `dotnet publish` für beide Server aus, deployt beide via `azure/webapps-deploy@v3` (ZIP-Deploy) auf die per Terraform ermittelten App-Service-Namen.
+
+Es gibt **nur die Umgebung `dev`** im Workflow – kein automatisiertes `staging`/`prod`-Stufenkonzept mit Required Reviewers. Für weitere Umgebungen müsste `deploy.yml` um zusätzliche Jobs/Environments erweitert werden (analog zu `deploy-dev`, mit eigenem `terraform.<env>.tfvars` und eigenem GitHub Environment inkl. Required Reviewers als Protection Rule).
+
+`main` ist per Branch-Protection geschützt: Pull-Request-Pflicht (kein Direct-Push, auch nicht für Repo-Admins), Pflicht-Status-Checks `build` + `deploy-dev` vor jedem Merge. Ein Merge nach `main` löst automatisch `deploy-dev` aus.
+
+Alle Jobs laufen auf `ubuntu-latest`. `shell: pwsh` wird für die Terraform-Skript-Aufrufe genutzt – GitHub-gehostete Ubuntu-Runner haben PowerShell 7 vorinstalliert.
 
 Benötigte Secrets im Repo (Settings → Secrets and variables → Actions):
-- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (für OIDC-Login via `azure/login`, kein langlebiges Secret nötig)
+- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (für OIDC-Login via `azure/login`, kein langlebiges Secret für die Pipeline-Identität nötig)
+
+Voraussetzung, damit diese OIDC-Anmeldung überhaupt funktioniert: der einmalige [Berechtigungs-Bootstrap](#berechtigungs-bootstrap-für-cicd-einmalig-pro-neuer-umgebungneuem-service-principal) weiter oben muss für die referenzierte App-Registrierung bereits durchgeführt worden sein.
 
 ## Rollback
 
-Da Deployments idempotent (Bicep, vollständiger Stack) sind: einfach den vorherigen Commit/Tag erneut deployen. Für Entra-ID-Änderungen: `Set-EntraIdApps.ps1` ist additiv/aktualisierend – ein "Rollback" bedeutet, die Soll-Zustands-JSON auf den alten Stand zu bringen und erneut auszuführen.
+Terraform-Deployments sind idempotent: einfach den vorherigen Commit/Tag auschecken und `terraform apply` erneut laufen lassen (bzw. den entsprechenden PR mergen). Da Azure-Ressourcen und Entra-ID-Objekte im selben State liegen, deckt ein Rollback beides gleichzeitig ab. Für reine Entra-ID-Änderungen ohne Azure-Ressourcen-Änderung genügt `terraform apply` mit dem vorherigen `terraform.<env>.tfvars`-Stand.
 
 ## Empfehlung: Deployment Stacks für Drift-Erkennung
 

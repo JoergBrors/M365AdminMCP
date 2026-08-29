@@ -1,27 +1,70 @@
 # Entra ID Provisionierung
 
-Es gibt jetzt **drei** Wege, alle liegen im Repo:
+**Weg C (Terraform, `terraform/modules/entra-id`) ist der einzige aktiv gepflegte Weg** und über
+`.github/workflows/deploy.yml` automatisiert. Die Wege A und B existieren noch im Repo, sind aber
+**Legacy/nicht aktiv gepflegt** – siehe Kennzeichnung unten.
 
-| Weg | Reife | Empfehlung |
+| Weg | Status | Empfehlung |
 |---|---|---|
-| A) `scripts/Set-EntraIdApps.ps1` (Azure CLI) | Stabil | Guter Standard ohne Terraform-Abhängigkeit |
-| B) `infra/modules/entra-id.bicep` (Microsoft Graph Bicep Extension) | **Preview** | Nur bewusst, siehe Warnhinweise unten |
-| C) `terraform/modules/entra-id` (hashicorp/azuread Provider) | **Stabil, GA** | **Empfohlen, sobald ohnehin Terraform genutzt wird** (siehe unten) |
+| A) `scripts/Set-EntraIdApps.ps1` (Azure CLI) | Legacy, nicht im CI | Nur falls Terraform bewusst nicht genutzt werden soll |
+| B) `infra/modules/entra-id.bicep` (Microsoft Graph Bicep Extension) | Legacy, **Preview-Feature**, nicht im CI | Nur als Referenz/Ideengeber |
+| C) `terraform/modules/entra-id` (hashicorp/azuread Provider) | **Aktiv, im CI verdrahtet** | **Immer verwenden** |
 
-Alle drei legen dieselben Objekte an: `api-server`, `mcp-server`, die App-Role-/Delegated-Permission-Grants
+Alle drei legen konzeptionell dieselben Objekte an: `api-server`, `mcp-server`, die App-Role-/Delegated-Permission-Grants
 zwischen beiden, die Microsoft-Graph-Application-Permissions `ServiceHealth.Read.All`,
 `ServiceMessage.Read.All`, `Reports.Read.All` für die Office-365-Status-/Nachrichten-/Adoption-Tools
 des MCP Servers (siehe `docs/ARCHITECTURE.md`), sowie die drei externen MCP-OAuth-Client-Apps für
 **ChatGPT**, **Claude** und **Copilot Studio** (siehe `docs/DEPLOYMENT.md`, Abschnitt "MCP OAuth
-Clients") – jeweils als `web`-Plattform-Redirect-URI mit `isFallbackPublicClient`/
-`fallback_public_client_enabled = true` (public client, PKCE-only, kein Secret).
+Clients"). Nur Weg C (Terraform) ist aber tatsächlich aktuell und wird durch CI/CD am Leben gehalten.
 
 **Wichtig: Immer nur EINEN Weg pro Umgebung verwenden, niemals mischen.** Alle drei Wege verwalten
 dieselben Entra-Objekte inkl. Client Secrets. Läuft z. B. `Set-EntraIdApps.ps1` gegen eine bereits per
 Terraform verwaltete Umgebung, erzeugt `az ad app credential reset` ein neues aktives Secret und macht
 das von Terraform verwaltete Secret ungültig – der nächste `terraform plan` zeigt dann Drift.
 
-## Weg A (empfohlen): `scripts/Set-EntraIdApps.ps1`
+## Vollständiger Entra-ID-Objektkatalog (Weg C, Terraform)
+
+Diese Tabelle listet **jedes** von `terraform/modules/entra-id/main.tf` verwaltete Objekt. Für die
+zugehörigen Azure-Ressourcen (Key Vault, RBAC, Managed Identities) siehe
+[`docs/DEPLOYMENT.md`](DEPLOYMENT.md), Abschnitt "Terraform: Was genau in Azure bereitgestellt wird".
+
+### App-Registrierungen
+
+| App-Registrierung | Terraform-Ressource | Client-Typ | Zweck |
+|---|---|---|---|
+| `api-server-<env>` | `azuread_application.api` | Resource App | Exposed API (`api://api-server-<env>`), App Role `Tasks.ReadWrite.All` (App-only), Delegated Scope `Tasks.ReadWrite` (Nutzer-Kontext). `required_resource_access` auf Microsoft Graph: `ServiceHealth.Read.All`, `ServiceMessage.Read.All`, `Reports.Read.All` (alle als Application Permission) |
+| `swagger-client-<env>` | `azuread_application.swagger` | SPA (Public Client) | Ermöglicht Login in die Swagger-UI des ApiServer per Auth-Code-Flow, Scope `Tasks.ReadWrite` auf `api-server` |
+| `mcp-server-<env>` | `azuread_application.mcp` | Resource + Confidential Client | `api://mcp-server-<env>`, Delegated Scope `Mcp.Access`, Application Permission `Tasks.ReadWrite.All` auf `api-server`, Delegated Scope `Tasks.ReadWrite` auf `api-server`. `implicit_grant.id_token_issuance_enabled = true` |
+| `chatgpt-mcp-client-<env>` | `azuread_application.mcp_oauth_client["chatgpt"]` | **Public Client** (PKCE, kein Secret) | Externer OAuth-Client für den ChatGPT-Connector, Delegated Scope `Mcp.Access` auf `mcp-server` |
+| `claude-mcp-client-<env>` | `azuread_application.mcp_oauth_client["claude"]` | **Public Client** (PKCE, kein Secret) | Externer OAuth-Client für Claude, Delegated Scope `Mcp.Access` auf `mcp-server` |
+| `copilot-mcp-client-<env>` | `azuread_application.copilot_mcp_oauth_client` | **Confidential Client** (mit Secret) | Externer OAuth-Client für Copilot Studio/Power Platform, Delegated Scope `Mcp.Access` auf `mcp-server` |
+
+**Warum ChatGPT/Claude Public Clients sind, Copilot Studio aber ein Confidential Client:** Die Terraform-Ressource für ChatGPT/Claude nutzt die `public_client { redirect_uris }`-Plattform (kein `web`/`spa`-Block); Copilot Studio nutzt `web { redirect_uris }`. Grund (siehe Kommentare in `terraform/modules/entra-id/main.tf`, Zeilen ~195–246): Eine `web`-Plattform erzwingt bei Entra ID **immer** einen Confidential Client (Fehler `AADSTS7000218`, unabhängig vom `isFallbackPublicClient`-Flag); eine `spa`-Plattform löst bei serverseitiger Code-Einlösung ohne Origin-Header einen Cross-Origin-PKCE-Fehler aus (`AADSTS9002325`). Der einzige Weg zu einem echten Public Client ist die `publicClient`-Plattform – die aber von der Copilot-Studio-OAuth-UI nicht unterstützt wird, da diese zwingend ein Secret-Feld verlangt. Für einen **neuen** Client gilt als Faustregel: verlangt die Ziel-UI ein Secret-Feld → `web`-Plattform (Confidential Client) wie Copilot Studio; verlangt sie keines → `public_client`-Plattform wie ChatGPT/Claude.
+
+### Berechtigungs-Verknüpfungen (App-Role-Assignments & Delegated-Permission-Grants)
+
+| Terraform-Ressource | Von → Nach | Typ | Bedeutung |
+|---|---|---|---|
+| `azuread_app_role_assignment.mcp_to_api_task_readwrite` | `mcp-server` → `api-server` | App-Role-Assignment | Erlaubt `mcp-server` App-only-Zugriff auf `api-server` (`Tasks.ReadWrite.All`) |
+| `azuread_app_role_assignment.api_to_graph_service_health` / `_service_message` / `_reports` | `api-server` → Microsoft Graph | App-Role-Assignment | Erlaubt `api-server` App-only-Zugriff auf Service Health / Message Center / Reports |
+| `azuread_service_principal_delegated_permission_grant.mcp_delegated_to_api` | `mcp-server` → `api-server` | Delegated-Permission-Grant (Admin Consent) | Erlaubt OBO-Flow von `mcp-server` im Namen des Nutzers gegen `api-server` |
+| `azuread_service_principal_delegated_permission_grant.swagger_delegated_to_api` | `swagger-client` → `api-server` | Delegated-Permission-Grant | Erlaubt Swagger-UI-Login mit Zugriff auf `api-server` |
+| `azuread_service_principal_delegated_permission_grant.mcp_oauth_client_delegated_to_mcp` (`for_each` chatgpt/claude) | `<chatgpt\|claude>-mcp-client` → `mcp-server` | Delegated-Permission-Grant | Claims `["Mcp.Access", "offline_access"]`. `offline_access` wird bewusst explizit gegen `mcp-server` statt implizit gegen Graph gewährt – sonst `AADSTS65001` bei manchen Clients (beobachtet bei Claude) |
+| `azuread_service_principal_delegated_permission_grant.copilot_mcp_oauth_client_delegated_to_mcp` | `copilot-mcp-client` → `mcp-server` | Delegated-Permission-Grant | Analog, Claims `["Mcp.Access", "offline_access"]` |
+
+### Secrets
+
+| Terraform-Ressource | App | Ablauf |
+|---|---|---|
+| `azuread_application_password.api` | `api-server` | `end_date_relative = "8760h"` (1 Jahr) |
+| `azuread_application_password.mcp` | `mcp-server` | `end_date_relative = "8760h"` |
+| `azuread_application_password.copilot_mcp_oauth_client` | `copilot-mcp-client` | `end_date_relative = "8760h"` |
+
+Alle drei Secrets sind zeitlich befristet (1 Jahr) und müssen vor Ablauf erneuert werden – `terraform apply`
+erkennt ein abgelaufenes/bald ablaufendes Secret beim nächsten Plan als Drift und erneuert es. ChatGPT/Claude
+haben **kein** Secret (Public Client, PKCE-only).
+
+## Weg A (Legacy, nicht im CI): `scripts/Set-EntraIdApps.ps1`
 
 Nutzt die Azure CLI (`az ad app`, `az ad sp`, Microsoft Graph über `az rest`). Vorteile:
 - Stabil, keine Preview-Abhängigkeit
@@ -55,7 +98,7 @@ Benötigte Berechtigung des ausführenden Kontos: **Application Administrator** 
 - **`ERROR: Found multiple accounts with the same username ...` beim `az login`**: Bekannter Azure-CLI-WAM-Broker-Bug bei mehreren gecachten Sessions derselben Identität ([Azure/azure-cli#20168](https://github.com/Azure/azure-cli/issues/20168)). `scripts/Connect-Azure.ps1` erkennt diesen Fehler automatisch und weicht auf `az login --use-device-code` aus. Falls das Problem wiederholt auftritt: einmalig `az account clear` ausführen und neu anmelden.
 - **`"--headers" kann syntaktisch an dieser Stelle nicht verarbeitet werden.`**: `az` ist unter Windows ein `.cmd`-Batch-Wrapper, der intern `cmd.exe`-Parsing durchläuft. Eine unquotierte URI mit runden Klammern (z. B. die Graph-Adressierung `applications(appId='...')`) bricht dabei die nachfolgende Argumentliste. `scripts/Set-EntraIdApps.ps1` adressiert Applications deshalb konsequent klammerfrei über die Object-ID (`applications/{id}` statt `applications(appId='{appId}')`) – funktioniert identisch auf macOS/Linux/CI.
 
-## Weg B (optional/Preview): Microsoft Graph Bicep Extension
+## Weg B (Legacy, Preview-Feature, nicht im CI): Microsoft Graph Bicep Extension
 
 `infra/modules/entra-id.bicep` zeigt, wie dieselben Objekte deklarativ per Bicep angelegt werden könnten (`Microsoft.Graph/applications`, `Microsoft.Graph/servicePrincipals`, `Microsoft.Graph/appRoleAssignedTo` über die Microsoft-Graph-Bicep-Extension).
 
@@ -67,7 +110,7 @@ Benötigte Berechtigung des ausführenden Kontos: **Application Administrator** 
 
 → Nutze Weg B nur, wenn du bewusst mit Preview-Features arbeiten willst, sonst bleib bei Weg A oder C.
 
-## Weg C (empfohlen bei Terraform-Einsatz): `terraform/modules/entra-id`
+## Weg C (aktiv, einziger im CI verdrahteter Weg): `terraform/modules/entra-id`
 
 Nutzt den offiziellen `hashicorp/azuread`-Provider – im Gegensatz zu Weg B **kein Preview-Feature**,
 sondern ein produktionsreif dokumentierter Terraform-Provider. Vorteile gegenüber Weg A:
@@ -85,11 +128,14 @@ Enthält:
 - `azuread_service_principal_delegated_permission_grant` für den Delegated Scope (Admin Consent für OBO)
 - `azuread_application_password` als Client Secret, landet über das Infra-Modul im Key Vault
 
-**Berechtigung des ausführenden Principals:** wie bei Weg A – Application Administrator (oder höher) in
-Entra ID. Bei CI/CD-Ausführung über eine Service Principal/Managed Identity muss dieser Prinzipal selbst
-`Application Administrator` (Entra-ID-Rolle, nicht Azure-RBAC!) zugewiesen bekommen.
+**Berechtigung des ausführenden Principals:** Application Administrator (oder höher) in Entra ID, bzw.
+für eine CI/CD-Service-Principal-Identität die granularen Microsoft-Graph-App-Rollen
+`Application.ReadWrite.All` + `Directory.Read.All`. Der vollständige, einmalige Einrichtungsablauf für
+eine neue CI-Identität (inkl. Azure-RBAC-Rollen, Federated Identity Credential, Graph-App-Rollen und der
+Henne-Ei-Falle bei `azurerm_role_assignment.deployer_kv_admin`) steht in
+[`docs/DEPLOYMENT.md`](DEPLOYMENT.md), Abschnitt "Berechtigungs-Bootstrap für CI/CD".
 
-Aufruf: siehe `docs/DEPLOYMENT.md`, Abschnitt "Terraform".
+Aufruf: siehe [`docs/DEPLOYMENT.md`](DEPLOYMENT.md), Abschnitt "Terraform: Laufender Betrieb".
 
 ## Manuelle Kontrolle / Nachvollziehbarkeit
 

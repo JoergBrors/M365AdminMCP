@@ -1,6 +1,6 @@
 # What-If & Config-Diff – Empfehlung zur Konfiguration
 
-## Terraform: `terraform plan` (empfohlener Weg)
+## Terraform: `terraform plan` (einziger aktiv genutzter Weg)
 
 Mit Terraform entfällt das Problem "zwei getrennte Diffs" aus dem Bicep-Abschnitt unten weitgehend:
 Azure-Ressourcen (`azurerm_*`) **und** Entra-ID-Objekte (`azuread_*`) liegen im **selben State**, daher
@@ -24,11 +24,12 @@ angewendet wird, was zuvor reviewt wurde. `scripts/Invoke-TerraformApply.ps1` ma
 **Sensible Outputs** (z. B. `mcp_app_client_secret`) sind in den `outputs.tf`-Dateien mit
 `sensitive = true` markiert, damit sie nicht im Klartext in Plan-/Apply-Logs landen.
 
-## Bicep: `az deployment ... what-if`
+## Legacy: Bicep `az deployment ... what-if` (nicht aktiv gepflegt)
 
-Der folgende Abschnitt gilt für den **alternativen Bicep-Weg** (`infra/`). Bei Bicep sind Azure-Ressourcen
-und Entra-ID-Objekte (sofern Weg B/Preview genutzt wird) technisch getrennt, daher braucht es dort zwei
-Diffs statt einem.
+> Dieser Abschnitt gilt für den **Legacy-Bicep-Weg** (`infra/`), der nicht mehr im CI läuft (siehe
+> [`docs/DEPLOYMENT.md`](DEPLOYMENT.md)). Nur als Referenz stehen gelassen. Bei Bicep sind Azure-Ressourcen
+> und Entra-ID-Objekte (sofern Weg B/Preview genutzt wird) technisch getrennt, daher braucht es dort zwei
+> Diffs statt einem.
 
 ## Warum zwei getrennte Diffs nötig sind (nur relevant für den Bicep-Weg)
 
