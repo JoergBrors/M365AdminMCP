@@ -88,10 +88,7 @@ jobs:
 
       - name: Terraform Apply (dev)
         shell: pwsh
-        # TODO: -Force nur fuer den einmaligen Uebergang von User- auf Service-Principal-Deployment
-        # (haengt azurerm_role_assignment.deployer_kv_admin auf den CI-SP um). Nach dem ersten
-        # erfolgreichen CI-Deploy wieder entfernen, damit echte Loeschungen erneut abgefangen werden.
-        run: ./scripts/Invoke-TerraformApply.ps1 -Environment dev -AutoApprove -Force
+        run: ./scripts/Invoke-TerraformApply.ps1 -Environment dev -AutoApprove
 
       - name: Terraform Outputs fuer App Deployment lesen
         shell: pwsh
