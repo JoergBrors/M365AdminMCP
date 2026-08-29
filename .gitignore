@@ -22,6 +22,7 @@ obj/
 *.tfstate
 *.tfstate.*
 *.tfplan
+terraform/$PlanBin
 crash.log
 crash.*.log
 override.tf
