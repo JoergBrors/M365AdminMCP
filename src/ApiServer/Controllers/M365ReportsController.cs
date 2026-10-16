@@ -31,6 +31,7 @@ public class M365ReportsController : ControllerBase
                 name = r.FunctionName,
                 category = r.Category,
                 description = r.Description,
+                available = !r.DelegatedOnly,
                 parameters = r.ParamMode switch
                 {
                     ReportParamMode.PeriodOrDate => r.FunctionName.StartsWith("getMicrosoft365Copilot", StringComparison.OrdinalIgnoreCase)

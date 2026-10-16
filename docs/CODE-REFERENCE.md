@@ -74,7 +74,7 @@ Jede Klasse: `[McpServerToolType]`, Konstruktor-Injektion, Methoden `[McpServerT
 Neues Tool: Klasse anlegen + in `Program.cs` mit `.WithTools<…>()` registrieren; ApiServer-Endpoint zuerst bauen (Abschnitt 3).
 
 ### 2.7 `Reporting/ReportCatalog.cs`
-Katalog der 92 Graph-Beta-Reports (`ReportDefinition(FunctionName, Category, Description, ParamMode)`), Dictionary case-insensitiv, `AllowedPeriods = D7/D30/D90/D180`. Wird auch vom ApiServer kompiliert (ADR-0009). Siehe ADR-0008.
+Katalog der 92 Graph-Beta-Reports (`ReportDefinition(FunctionName, Category, Description, ParamMode, DelegatedOnly)`; `getApiUsage` ist `DelegatedOnly` und nicht abrufbar, 91 App-only nutzbar, davon in der Praxis `getOffice365ActiveUserCounts` mit Microsoft-seitigem Defekt), Dictionary case-insensitiv, `AllowedPeriods = D7/D30/D90/D180`. Wird auch vom ApiServer kompiliert (ADR-0009). Siehe ADR-0008.
 
 ### 2.8 `Utils/CsvJsonConverter.cs`
 Eigener CSV-Parser (Quotes, `""`, Zeilenumbrüche in Feldern) → JSON-Array (alle Werte als String). Erste Zeile = Header. Auch im ApiServer genutzt.

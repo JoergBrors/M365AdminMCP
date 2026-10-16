@@ -404,6 +404,15 @@ public class GraphApiClient
                 $"Unbekannter Report '{functionName}'. Nutze zuerst den Reports-Katalog.");
         }
 
+        if (def.DelegatedOnly)
+        {
+            // Graph liefert hierfuer mit App-only-Token immer 401 "Application is not authorized" (Doku: Application
+            // "Not supported"). Klar abweisen statt einen sinnlosen Graph-Aufruf zu machen.
+            throw new NotSupportedException(
+                $"Der Report '{functionName}' unterstuetzt laut Microsoft Graph keine Application-Permissions (nur delegiert, " +
+                "Nutzer mit Global Reader oder Global Administrator) und ist im App-only-Betrieb dieses Servers nicht verfuegbar.");
+        }
+
         string path;
 
         switch (def.ParamMode)
