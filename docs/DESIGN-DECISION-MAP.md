@@ -19,7 +19,7 @@ Details zu jeder Entscheidung: [`adr/`](adr/README.md). Komponentenbeschreibung:
 | 0012 | CI/CD + Schutz | `.github/workflows/deploy.yml`; `Invoke-TerraformApply.ps1` (Lösch-Check, `-Force`); `providers.tf` Backend | Branch-Protection, Secrets `AZURE_*`, Federated Credential |
 | 0013 | F1 Free-Tier | `variables.tf` `app_service_sku`; `infra/main.tf` `is_free_tier`, `always_on` | `terraform.dev.tfvars`, `docs/DEPLOYMENT.md` Kosten |
 | 0014 | API-Key-Auth | `McpServer/Program.cs` API-Key-Middleware, Policy `McpAccess`; `McpAuthOptions.ApiKey` | App Setting `McpAuth__ApiKey` |
-| 0015 | Debug ohne Auth + Inspector | `.vscode/launch.json`, `.vscode/tasks.json`; `McpServer/Program.cs` Development-Guard; `Stop-LocalDebugServers.ps1` | README-Abschnitt |
+| 0015 | Debug ohne Auth + Inspector | `.vscode/launch.json`, `.vscode/tasks.json`; `McpServer/Program.cs` Development-Guard + Loopback-Middleware; `scripts/Start-McpInspector.ps1`, `Stop-LocalDebugServers.ps1`; `tools/mcp-inspector/` | README-Abschnitt |
 
 ## Querschnitts-Konventionen (aus dem Code abgeleitet)
 | Konvention | Beispiel / Ort |

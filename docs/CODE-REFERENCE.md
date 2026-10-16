@@ -19,7 +19,7 @@ ApiServer  (/api/tasks, /api/m365/*, /healthz, /swagger nur Development)  src/Ap
 Microsoft Graph  v1.0: /admin/serviceAnnouncement/*   beta: /reports/*
 ```
 
-Lokale Ports: ApiServer `5043/7043`, McpServer `5143/7143`, Inspector `6274` (UI) / `6277` (Proxy).
+Lokale Ports: ApiServer `5043/7043`, McpServer `5143/7143`, Inspector v2 `6274` (UI + Backend) und `6275` (MCP-Apps-Sandbox), beide nur `127.0.0.1`.
 Azure-Hosts: `https://entramcp-<env>-api.azurewebsites.net`, `https://entramcp-<env>-mcp.azurewebsites.net`.
 
 ## 2. McpServer (`src/McpServer`)
@@ -136,10 +136,10 @@ Namenskonventionen: Apps `api-server-<env>`, `mcp-server-<env>`, Identifier-URIs
 ## 5. CI/CD und Skripte
 - `.github/workflows/deploy.yml`: ADR-0012 (build → plan im PR / apply + publish + zip-deploy auf `main`).
 - Skripte in `scripts/` (PowerShell 7). **Aktiv:** `Connect-Azure`, `Install-Prerequisites`, `Initialize-TerraformBackend`, `Invoke-TerraformPlan`, `Invoke-TerraformApply`, `Export-TerraformLocalSettings` (erzeugt beide `appsettings.Development.json`),
-  `Set-GitHubActionsSettings`, `Add-McpOauthRedirectUri`, `New-GitHubRepo`, `Stop-LocalDebugServers`. **Legacy (nicht verwenden):** `Set-EntraIdApps`, `Get-EntraIdDiff`, `Invoke-BicepDeploy`, `Invoke-BicepWhatIf`, Ordner `infra/`.
+  `Set-GitHubActionsSettings`, `Add-McpOauthRedirectUri`, `New-GitHubRepo`, `Stop-LocalDebugServers`, `Start-McpInspector`. **Legacy (nicht verwenden):** `Set-EntraIdApps`, `Get-EntraIdDiff`, `Invoke-BicepDeploy`, `Invoke-BicepWhatIf`, Ordner `infra/`.
 
 ## 6. Lokale Entwicklung
-`.vscode/launch.json` + `tasks.json`: Konfigurationen „Debug ApiServer“, „Debug McpServer“, „Debug API + MCP“ (Compound), **„Debug API + MCP + Inspector“** (ADR-0015). `Stop-LocalDebugServers.ps1` räumt Ports 5043/7043/5143/7143/6274/6277.
+`.vscode/launch.json` + `tasks.json`: Konfigurationen „Debug ApiServer“, „Debug McpServer“, „Debug API + MCP“ (Compound), **„Debug API + MCP + Inspector“** (ADR-0015: Stop → Build → `Start-McpInspector.ps1` → API + MCP im Debugger; Browser öffnet nach `/healthz` mit Auto-Connect-Deep-Link). `Stop-LocalDebugServers.ps1` beendet nur Prozesse mit Repo-Komponentenpfad (`src/ApiServer/bin`, `src/McpServer/bin`, `tools/mcp-inspector`); fremde Port-Besitzer 5043/7043/5143/7143/6274/6275 werden nur gemeldet. Inspector gepinnt in `tools/mcp-inspector/` (v2.11.0, Lockfile). `McpServer/Program.cs`: Development-Guard + Loopback-Middleware bei `RequireAuthentication=false`.
 `appsettings.Development.json` (git-ignoriert) kommt aus `Export-TerraformLocalSettings.ps1`.
 
 ## 7. Bekannte Lücken / technische Schuld (Backlog-Kandidaten)

@@ -44,21 +44,26 @@
     },
     {
       "label": "mcp-inspector",
-      "type": "shell",
-      "command": "npx -y @modelcontextprotocol/inspector",
-      "options": {
-        "env": {
-          "MCP_AUTO_OPEN_ENABLED": "false"
-        }
-      },
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/Start-McpInspector.ps1"
+      ],
       "isBackground": true,
       "problemMatcher": {
         "owner": "mcp-inspector",
-        "pattern": { "regexp": "^$" },
+        "pattern": {
+          "regexp": "^\\[inspector\\] ERROR (.*)$",
+          "message": 1
+        },
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "Starting MCP inspector",
-          "endsPattern": "MCP Inspector is up and running"
+          "beginsPattern": "^\\[inspector\\] starting",
+          "endsPattern": "^\\[inspector\\] ready"
         }
       },
       "presentation": { "panel": "dedicated", "reveal": "always" }

@@ -3,6 +3,7 @@ using Microsoft.Identity.Web;
 using McpServer.Auth;
 using McpServer.Services;
 using McpServer.Tools;
+using System.Net;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -104,6 +105,36 @@ builder.Services
     .WithTools<M365AdoptionCatalogTool>();
 
 var app = builder.Build();
+
+if (!requireMcpAuthentication)
+{
+    // Lokaler Debug-Modus (nur Development, siehe Guard oben): /mcp ist ungeschuetzt und darf deshalb nur
+    // von Loopback-Aufrufern mit Loopback-Host-Header erreichbar sein. Ein lokaler Tunnel (z.B. auf
+    // https://mydevice-mcp.brors.date) leitet zwar von 127.0.0.1 weiter, behaelt aber den oeffentlichen
+    // Host-Header und wird hier mit 403 abgewiesen (zugleich Schutz gegen DNS-Rebinding).
+    app.Logger.LogWarning("McpAuth:RequireAuthentication=false - MCP-Endpunkt ohne Authentifizierung, nur Loopback erlaubt.");
+    app.Use(async (context, next) =>
+    {
+        var remote = context.Connection.RemoteIpAddress;
+        if (remote is { IsIPv4MappedToIPv6: true })
+        {
+            remote = remote.MapToIPv4();
+        }
+
+        var host = context.Request.Host.Host;
+        var loopbackCaller = remote is not null && IPAddress.IsLoopback(remote);
+        var loopbackHost = host is "localhost" or "127.0.0.1" or "[::1]" or "::1";
+
+        if (!loopbackCaller || !loopbackHost)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync("Unauthenticated local debug mode: loopback access only.");
+            return;
+        }
+
+        await next();
+    });
+}
 
 app.UseCors("McpDiscovery");
 

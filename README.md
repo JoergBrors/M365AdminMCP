@@ -95,12 +95,15 @@ dotnet run --project src/McpServer   # http://localhost:5143 / https://localhost
 
 ### Lokal testen mit dem MCP Inspector (VS Code Debug)
 
-Launch-Konfiguration **"Debug API + MCP + Inspector"** (F5) baut, startet ApiServer + McpServer (ohne OAuth, nur
-`Development`) und den [MCP Inspector](https://github.com/modelcontextprotocol/inspector) (benötigt Node.js/`npx`).
-Danach im Browser `http://localhost:6274/?transport=streamable-http&serverUrl=http://localhost:5143/mcp` öffnen
-(ggf. den im Terminal ausgegebenen Proxy-Token-URL verwenden). Breakpoints in den Tools greifen normal.
-`McpAuth__RequireAuthentication=false` wird nur in dieser Launch-Konfiguration gesetzt; der Server verweigert den
-Start, wenn es außerhalb von `Development` gesetzt ist – Deployment (OAuth) bleibt unverändert.
+Voraussetzungen: Node.js ≥ 22.19.0, PowerShell 7, lokale `appsettings.Development.json` (`pwsh ./scripts/Export-TerraformLocalSettings.ps1 -Environment dev`).
+
+Konfiguration **„Debug API + MCP + Inspector“** wählen und **F5** drücken. Das startet nacheinander: Aufräumen eigener Alt-Prozesse → Build →
+gepinnten [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (`tools/mcp-inspector`, `127.0.0.1:6274`, zufälliger Sitzungstoken) → ApiServer + McpServer im Debugger.
+Sobald beide `/healthz` beantworten, öffnet sich der Browser und der Inspector verbindet sich selbst mit `http://localhost:5143/mcp`; die 11 Tools sind sofort sichtbar, Breakpoints in MCP und API greifen.
+Beim Beenden der Debug-Session werden Inspector und Server-Prozesse dieses Repos beendet. Details, Sicherheit und Fehlerbilder: [`docs/DEBUGGING.md`](docs/DEBUGGING.md), [ADR-0015](docs/adr/0015-lokales-debugging-mit-inspector.md).
+
+`McpAuth__RequireAuthentication=false` gilt nur in dieser Launch-Konfiguration. Außerhalb von `Development` verweigert der Server den Start, und ohne Auth sind nur Loopback-Aufrufe
+mit `localhost`-Host-Header erlaubt (Tunnel werden mit 403 abgewiesen). Das Azure-Deployment (OAuth, Managed Identity, Terraform) bleibt unverändert.
 
 ```
 
