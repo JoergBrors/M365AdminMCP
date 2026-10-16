@@ -53,7 +53,10 @@ Lokal geprüft (tatsächlich ausgeführt, in einer Kopie ohne Backend-Zustand, P
 - `terraform init -backend=false` → Exit 0
 - `terraform validate` → **Success** (eine bereits vorhandene Deprecation-Warnung zu `azuread_application_password`, nicht von dieser Änderung)
 
-**Nicht lokal ausführbar:** `terraform plan` gegen das Backend. Der lokale `az`-Kontext zeigt auf einen anderen Tenant/Subscription als `.env`; `Invoke-TerraformPlan.ps1` würde ein interaktives `az login` auslösen. Der maßgebliche Plan ist der Job `terraform-plan` des Pull Requests (PR-Kommentar, siehe PR-Beschreibung für das Ergebnis). **Es wurde kein `terraform apply` und kein `destroy` ausgeführt.**
+**Tatsächliches Plan-Ergebnis (CI-Job `terraform-plan` des Pull Requests #6, 2026-10-16 17:05 UTC, Erfolg):**
+`Plan: 0 to add, 1 to change, 0 to destroy.` – einzige Änderung: `module.infra.azurerm_linux_web_app.api` wird in-place aktualisiert (neue App Settings `MicrosoftHealth__Enabled`, `__TenantId`, `__EnableIntune`, `__EnableAzure`). Keine Replacements, keine Deletes, **keine** Änderung an `azuread_app_role_assignment.*`, App-Registrierungen, Service Principals oder Rollenzuweisungen; keine Secret-Werte im Plan. Das entspricht der Erwartung für `azure_health_subscription_ids = []` (`__AllowedSubscriptionIds__N` und die RBAC-Ressource erscheinen erst mit gesetzten Subscriptions).
+
+**Lokal nicht ausführbar:** `terraform plan` gegen das Backend. Der lokale `az`-Kontext zeigt auf einen anderen Tenant/Subscription als `.env`; `Invoke-TerraformPlan.ps1` würde ein interaktives `az login` auslösen. Der maßgebliche Plan ist der Job `terraform-plan` des Pull Requests (Ergebnis oben). **Es wurde kein `terraform apply` und kein `destroy` ausgeführt.**
 
 ## 6. Deployment-Auswirkungen
 
