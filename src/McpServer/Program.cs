@@ -33,6 +33,11 @@ builder.Services.AddCors(options =>
 });
 
 var requireMcpAuthentication = builder.Configuration.GetValue("McpAuth:RequireAuthentication", true);
+// Sicherheitsnetz: Auth darf nur lokal (Debug mit MCP Inspector) abgeschaltet werden, nie im Deployment.
+if (!requireMcpAuthentication && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException("McpAuth:RequireAuthentication=false ist nur in der Development-Umgebung erlaubt.");
+}
 if (requireMcpAuthentication)
 {
     builder.Services

@@ -92,6 +92,16 @@ pwsh ./scripts/Export-TerraformLocalSettings.ps1 -Environment dev
 # 6) Server lokal starten
 dotnet run --project src/ApiServer   # http://localhost:5043 / https://localhost:7043
 dotnet run --project src/McpServer   # http://localhost:5143 / https://localhost:7143
+
+### Lokal testen mit dem MCP Inspector (VS Code Debug)
+
+Launch-Konfiguration **"Debug API + MCP + Inspector"** (F5) baut, startet ApiServer + McpServer (ohne OAuth, nur
+`Development`) und den [MCP Inspector](https://github.com/modelcontextprotocol/inspector) (benötigt Node.js/`npx`).
+Danach im Browser `http://localhost:6274/?transport=streamable-http&serverUrl=http://localhost:5143/mcp` öffnen
+(ggf. den im Terminal ausgegebenen Proxy-Token-URL verwenden). Breakpoints in den Tools greifen normal.
+`McpAuth__RequireAuthentication=false` wird nur in dieser Launch-Konfiguration gesetzt; der Server verweigert den
+Start, wenn es außerhalb von `Development` gesetzt ist – Deployment (OAuth) bleibt unverändert.
+
 ```
 
 Details zu allen Terraform-Ressourcen, Kosten, CI/CD-Ablauf und den MCP-OAuth-Clients: siehe [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Vollständige Architektur inkl. Auth-Flows und Tool-Katalog: siehe [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

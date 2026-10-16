@@ -43,6 +43,37 @@
       "problemMatcher": []
     },
     {
+      "label": "mcp-inspector",
+      "type": "shell",
+      "command": "npx -y @modelcontextprotocol/inspector",
+      "options": {
+        "env": {
+          "MCP_AUTO_OPEN_ENABLED": "false"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "mcp-inspector",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Starting MCP inspector",
+          "endsPattern": "MCP Inspector is up and running"
+        }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "prepare-inspector-debug",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "stop-local-debug-servers",
+        "build",
+        "mcp-inspector"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "prepare-combined-debug",
       "dependsOrder": "sequence",
       "dependsOn": [
