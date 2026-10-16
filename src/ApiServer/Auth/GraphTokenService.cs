@@ -47,7 +47,7 @@ public class GraphTokenService
             .Build();
     }
 
-    public async Task<string> GetGraphTokenAsync(CancellationToken cancellationToken = default)
+    public virtual async Task<string> GetGraphTokenAsync(CancellationToken cancellationToken = default)
     {
         if (_managedIdentityCredential is not null)
         {
