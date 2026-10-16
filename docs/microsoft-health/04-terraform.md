@@ -58,6 +58,10 @@ Lokal geprüft (tatsächlich ausgeführt, in einer Kopie ohne Backend-Zustand, P
 
 **Lokal nicht ausführbar:** `terraform plan` gegen das Backend. Der lokale `az`-Kontext zeigt auf einen anderen Tenant/Subscription als `.env`; `Invoke-TerraformPlan.ps1` würde ein interaktives `az login` auslösen. Der maßgebliche Plan ist der Job `terraform-plan` des Pull Requests (Ergebnis oben). **Es wurde kein `terraform apply` und kein `destroy` ausgeführt.**
 
+## 5a. Aktivierungsstand (dev)
+
+Azure Service/Resource Health ist für die Dev-Subscription über `azure_health_subscription_ids` in `terraform/terraform.dev.tfvars` aktiviert (eigener PR nach der Erstauslieferung). Voraussetzungen, die vor dem Merge erfüllt sein mussten und geprüft wurden: (1) der CI-Principal `sp_keyvault` besitzt `Role Based Access Control Administrator` auf der Subscription (bisher nur auf dem Key Vault), (2) der Resource Provider `Microsoft.ResourceHealth` ist in der Subscription registriert. Erwarteter Plan: `1 to add` (`api_azure_health_reader`), `1 to change` (App Settings der API-Web-App), `0 to destroy`.
+
 ## 6. Deployment-Auswirkungen
 
 1. Merge → `deploy-dev` wendet den Plan an (Standardwerte): API-Web-App erhält neue App Settings und startet neu. Die Intune-/Microsoft-365-Tools sind danach sofort nutzbar (Graph-Rollen existieren bereits); `azure_*`-Tools antworten `disabled`.

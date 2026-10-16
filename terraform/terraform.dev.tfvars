@@ -20,3 +20,4 @@ copilot_mcp_redirect_uris = [
   "https://global.consent.azure-apim.net/redirect",
   "https://global.consent.azure-apim.net/redirect/crea8-5fmcpservero365-5f6a2fde1466b59a2e"
 ]
+azure_health_subscription_ids = ["d6743694-573f-4c53-bdce-dac70756a7f3"]
