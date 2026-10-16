@@ -74,7 +74,7 @@ Jede Klasse: `[McpServerToolType]`, Konstruktor-Injektion, Methoden `[McpServerT
 Neues Tool: Klasse anlegen + in `Program.cs` mit `.WithTools<…>()` registrieren; ApiServer-Endpoint zuerst bauen (Abschnitt 3).
 
 ### 2.7 `Reporting/ReportCatalog.cs`
-Katalog der 92 Graph-Beta-Reports (`ReportDefinition(FunctionName, Category, Description, ParamMode)`), Dictionary case-insensitiv, `AllowedPeriods = D7/D30/D90/D180`. Wird auch vom ApiServer kompiliert (ADR-0009). Siehe ADR-0008.
+Katalog der 92 Graph-Beta-Reports (`ReportDefinition(FunctionName, Category, Description, ParamMode, DelegatedOnly)`; `getApiUsage` ist `DelegatedOnly` und nicht abrufbar, 91 App-only nutzbar, davon in der Praxis `getOffice365ActiveUserCounts` mit Microsoft-seitigem Defekt), Dictionary case-insensitiv, `AllowedPeriods = D7/D30/D90/D180`. Wird auch vom ApiServer kompiliert (ADR-0009). Siehe ADR-0008.
 
 ### 2.8 `Utils/CsvJsonConverter.cs`
 Eigener CSV-Parser (Quotes, `""`, Zeilenumbrüche in Feldern) → JSON-Array (alle Werte als String). Erste Zeile = Header. Auch im ApiServer genutzt.
@@ -105,7 +105,7 @@ Singleton. Konstruktor wählt Pfad: `GraphAuth:UseManagedIdentity=true` → `Man
 | `GetServiceHealthIssuesAsync` | v1.0 `/admin/serviceAnnouncement/issues` | kein Paging |
 | `GetMessageCenterMessagesAsync` | v1.0 `/admin/serviceAnnouncement/messages[?$filter]` | `odataFilter` URL-escaped |
 | `GetCatalogReportAsJsonAsync` | baut Pfad aus `ReportCatalog` | validiert `period`; `date`/`serviceArea`/`appId` **nicht** (ADR-0008) |
-| `GetReportAsJsonAsync` | beta `/reports/…?$format=application/json` | No-Redirect, CSV-Fallback (ADR-0010) |
+| `GetReportAsJsonAsync` | beta `/reports/…?$format=application/json` | No-Redirect, Retry ohne `$format` bei 400, CSV-Download ohne Auth-Header, begrenzte Retries bei transienten Fehlern (max. 3 Versuche), Diagnose-Logging (ADR-0010) |
 | privat: `GetGraphV1Async`, `TrimLeadingSlash`, `EscapeODataString`, `ValidatePeriod` | | |
 
 ### 3.4 Controller
@@ -150,6 +150,7 @@ Namenskonventionen: Apps `api-server-<env>`, `mcp-server-<env>`, Identifier-URIs
 5. Kein Paging (`@odata.nextLink`) und kein Größenlimit für Antworten – ADR-0010.
 6. `GetMcpScope`/`GetExternalBaseUrl`/`SetNoStoreHeaders` zweifach vorhanden.
 7. Geteilte Quelldateien statt Bibliothek – ADR-0009.
-8. Keine Automatisierten Tests im Repo (kein Testprojekt in `EntraMcpMvp.sln`).
+8. Testabdeckung nur für `GraphApiClient.GetReportAsJsonAsync` (`tests/ApiServer.Tests`, in `EntraMcpMvp.sln`); übrige Komponenten ohne automatisierte Tests.
+11. NuGet-Warnungen NU1902/NU1903: `System.Security.Cryptography.Pkcs` 10.0.10 (transitiv über `Microsoft.Identity.Web` 4.14.2) hat bekannte Schwachstellen – bei einem Update von `Microsoft.Identity.Web` prüfen.
 9. `KeyNotFoundException`/`ArgumentException` aus `GraphApiClient` werden nicht auf 404/400 gemappt (Controller liefert 500).
 10. Die `bin/obj`-Ordner enthalten alte `net8.0`-Artefakte; maßgeblich ist `net10.0`.

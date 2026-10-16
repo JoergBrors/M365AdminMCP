@@ -17,6 +17,12 @@ Alle Service-Health/Message-Center-Aufrufe nutzen dagegen **v1.0** (`GetGraphV1A
 − Beta-Schema kann sich ändern; CSV-Spalten sind ungetypte Strings.
 − Große Reports werden vollständig im Speicher gehalten und als einzelne Tool-Antwort zurückgegeben (Token-/Größenlimit des LLM beachten). `@odata.nextLink`-Paging wird in `GetGraphV1Async` nicht verfolgt.
 − Der eigene CSV-Parser unterstützt Quotes, keine abweichenden Delimiter oder BOM-Behandlung.
+− Einzelne Reports sind bei Microsoft für den Tenant dauerhaft defekt (gegen den Dev-Tenant gemessen, 2026-10-16): `getOffice365ActiveUserCounts` liefert mit `$format=application/json` einen Graph-400 (`Can not add property tfm …`) und der CSV-Download-Host (`reportsweu.office.com`) nimmt die Verbindung an, liest den Request und schließt **ohne Antwort** (TLS 1.2 und 1.3, unabhängig von User-Agent/Accept, `v1.0`/`beta`, `$format=text/csv`, mehrfache Wiederholung mit Backoff). Das ist serverseitig und im Code nicht behebbar. `getApiUsage` liefert 401 (fehlende Graph-Berechtigung, offen).
+
+## Fehlerbehandlung (Stand Fix `fix/report-download-resilience`)
+- Graph-Aufruf und CSV-Download werden bei **transienten** Fehlern begrenzt wiederholt: höchstens 3 Versuche (Wartezeiten 500 ms und 1,5 s, +0–20 % Jitter), nur bei Netzwerk-/Timeout-Fehlern (`SocketException`/`IOException`/`TaskCanceledException` ohne Aufrufer-Abbruch, Verbindungsfehlern) und den Statuscodes 408/429/502/503/504. 4xx, Validierungsfehler und Abbruch durch den Aufrufer werden nie wiederholt.
+- Der Download sendet **keinen** `Authorization`-Header. Geloggt werden nur Host, Report-Pfad, Versuch, Phase ("Verbindungsaufbau/TLS", "nach Verbindungsaufbau: Verbindung ohne Antwort beendet", "Timeout", "HTTP-Status n"), `SocketError` und `HttpRequestError`; die vorautorisierte URL (Token in der Query) wird weder geloggt noch in Exceptions übernommen.
+- Tests: `tests/ApiServer.Tests/GraphApiClientReportTests.cs` (simulierte Graph-/Download-Antworten, ohne Netzwerk).
 
 ## Umsetzung
 `src/ApiServer/Services/GraphApiClient.cs` (`GetReportAsJsonAsync`, `GetGraphV1Async`), `src/ApiServer/Program.cs` (benannter HttpClient `GraphNoRedirect`), `src/McpServer/Utils/CsvJsonConverter.cs`.

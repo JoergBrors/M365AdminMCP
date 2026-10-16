@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using ApiServer.Auth;
 using McpServer.Reporting;
@@ -9,14 +10,28 @@ namespace ApiServer.Services;
 
 public class GraphApiClient
 {
+    // Begrenzte Wiederholung nur fuer transiente Fehler (siehe IsTransient): Versuche = Wartezeiten + 1.
+    private static readonly IReadOnlyList<TimeSpan> DefaultRetryDelays =
+        [TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(1500)];
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly GraphTokenService _tokenService;
+    private readonly ILogger<GraphApiClient> _logger;
+    private readonly IReadOnlyList<TimeSpan> _retryDelays;
 
-    public GraphApiClient(IHttpClientFactory httpClientFactory, GraphTokenService tokenService)
+    public GraphApiClient(
+        IHttpClientFactory httpClientFactory,
+        GraphTokenService tokenService,
+        ILogger<GraphApiClient> logger,
+        IReadOnlyList<TimeSpan>? retryDelays = null)
     {
         _httpClientFactory = httpClientFactory;
         _tokenService = tokenService;
+        _logger = logger;
+        _retryDelays = retryDelays ?? DefaultRetryDelays;
     }
+
+    private int MaxAttempts => _retryDelays.Count + 1;
 
     public async Task<string> GetServiceHealthOverviewAsync(CancellationToken cancellationToken = default)
     {
@@ -169,14 +184,15 @@ public class GraphApiClient
         var separator = reportPathWithoutQuery.Contains('?') ? "&" : "?";
         var jsonAttemptUrl = $"beta/{TrimLeadingSlash(reportPathWithoutQuery)}{separator}$format=application/json";
 
-        var response = await noRedirectClient.GetAsync(jsonAttemptUrl, cancellationToken);
+        var response = await SendGraphAsync(noRedirectClient, jsonAttemptUrl, reportPathWithoutQuery, cancellationToken);
 
         // Einzelne Reports (z.B. getOffice365ActiveUserCounts) liefern mit $format=application/json einen Graph-seitigen
         // 400 ("UnknownError"), obwohl der Standardweg ohne $format (302 auf CSV-Download) funktioniert. Einmal ohne
         // $format wiederholen; schlaegt auch das fehl, bleibt die urspruengliche Antwort fuer die Fehlermeldung erhalten.
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
-            var plainResponse = await noRedirectClient.GetAsync($"beta/{TrimLeadingSlash(reportPathWithoutQuery)}", cancellationToken);
+            var plainResponse = await SendGraphAsync(
+                noRedirectClient, $"beta/{TrimLeadingSlash(reportPathWithoutQuery)}", reportPathWithoutQuery, cancellationToken);
             if (plainResponse.IsSuccessStatusCode || (int)plainResponse.StatusCode is 301 or 302 or 307 or 308)
             {
                 response.Dispose();
@@ -196,21 +212,7 @@ public class GraphApiClient
 
         if ((int)response.StatusCode is 301 or 302 or 307 or 308 && response.Headers.Location is not null)
         {
-            var downloadClient = _httpClientFactory.CreateClient();
-            string csv;
-            try
-            {
-                csv = await downloadClient.GetStringAsync(response.Headers.Location, cancellationToken);
-            }
-            catch (HttpRequestException ex)
-            {
-                // Der Download-Host (reports*.office.com) ist ein separater Microsoft-Dienst; fuer einzelne Reports bricht er
-                // die Verbindung ab (z.B. getOffice365ActiveUserCounts). Ursache im Fehlertext benennen statt nur "Verbindung geschlossen".
-                throw new HttpRequestException(
-                    $"Der CSV-Download des Reports '{reportPathWithoutQuery}' von Microsoft ({response.Headers.Location.Host}) ist fehlgeschlagen: {ex.Message}",
-                    ex,
-                    ex.StatusCode);
-            }
+            var csv = await DownloadCsvAsync(response.Headers.Location, reportPathWithoutQuery, cancellationToken);
 
             return CsvJsonConverter.ConvertToJsonArray(csv);
         }
@@ -234,6 +236,160 @@ public class GraphApiClient
             statusCode: response.StatusCode);
     }
 
+    /// <summary>GET gegen Graph; transiente Statuscodes (408/429/502/503/504) und Netzwerkfehler werden begrenzt wiederholt.</summary>
+    private Task<HttpResponseMessage> SendGraphAsync(
+        HttpClient client, string relativeUrl, string reportPath, CancellationToken cancellationToken)
+    {
+        return RetryAsync("graph-report", client.BaseAddress?.Host ?? "graph", reportPath, async () =>
+        {
+            var response = await client.GetAsync(relativeUrl, cancellationToken);
+            if (IsTransientStatus(response.StatusCode))
+            {
+                var status = response.StatusCode;
+                response.Dispose();
+                throw new HttpRequestException($"Microsoft Graph antwortete mit {(int)status} ({status}).", null, status);
+            }
+
+            return response;
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Laedt die vorautorisierte CSV-URL des Report-Dienstes. Es wird bewusst KEIN Authorization-Header gesendet; die URL
+    /// (enthaelt ein kurzlebiges Token in der Query) wird nie geloggt, nur Host und Report-Pfad.
+    /// </summary>
+    private async Task<string> DownloadCsvAsync(Uri location, string reportPath, CancellationToken cancellationToken)
+    {
+        var downloadClient = _httpClientFactory.CreateClient();
+        downloadClient.DefaultRequestHeaders.Authorization = null;
+        var attempts = 0;
+
+        try
+        {
+            return await RetryAsync("csv-download", location.Host, reportPath, async () =>
+            {
+                attempts++;
+                using var request = new HttpRequestMessage(HttpMethod.Get, location);
+                request.Headers.Authorization = null;
+                using var response = await downloadClient.SendAsync(request, cancellationToken);
+                if (IsTransientStatus(response.StatusCode))
+                {
+                    throw new HttpRequestException(
+                        $"Download antwortete mit {(int)response.StatusCode} ({response.StatusCode}).", null, response.StatusCode);
+                }
+
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync(cancellationToken);
+            }, cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            // Der Download-Host (reports*.office.com) ist ein separater Microsoft-Dienst. Fuer einzelne Reports (z.B.
+            // getOffice365ActiveUserCounts) schliesst er die Verbindung nach dem TLS-Aufbau reproduzierbar ohne Antwort.
+            throw new HttpRequestException(
+                $"Der CSV-Download des Reports '{reportPath}' von Microsoft ({location.Host}) ist nach {attempts} Versuch(en) fehlgeschlagen " +
+                $"({Describe(ex).Phase}): {ex.Message}",
+                ex,
+                ex.StatusCode);
+        }
+    }
+
+    private async Task<T> RetryAsync<T>(
+        string operation, string host, string reportPath, Func<Task<T>> action, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await action();
+            }
+            catch (Exception ex) when (IsTransient(ex, cancellationToken))
+            {
+                var failure = Describe(ex);
+                if (attempt >= MaxAttempts)
+                {
+                    _logger.LogError(
+                        "Transienter Fehler bei {Operation} endgueltig nach {Attempts} Versuchen (Host {Host}, Report {Report}, Phase {Phase}, SocketError {SocketError}, HttpRequestError {HttpRequestError}).",
+                        operation, attempt, host, reportPath, failure.Phase, failure.SocketError, failure.HttpRequestError);
+                    throw;
+                }
+
+                var baseDelay = _retryDelays[attempt - 1];
+                var delay = baseDelay + TimeSpan.FromMilliseconds(baseDelay.TotalMilliseconds * 0.2 * Random.Shared.NextDouble());
+                _logger.LogWarning(
+                    "Transienter Fehler bei {Operation} (Versuch {Attempt}/{MaxAttempts}, Host {Host}, Report {Report}, Phase {Phase}, SocketError {SocketError}, HttpRequestError {HttpRequestError}); neuer Versuch in {DelayMs} ms.",
+                    operation, attempt, MaxAttempts, host, reportPath, failure.Phase, failure.SocketError, failure.HttpRequestError, (int)delay.TotalMilliseconds);
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+    }
+
+    private static bool IsTransientStatus(HttpStatusCode status) =>
+        status is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests or HttpStatusCode.BadGateway
+            or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
+
+    /// <summary>
+    /// Nur Netzwerk-/Timeout-Fehler und die Statuscodes 408/429/502/503/504 gelten als transient. 4xx (ausser 408/429),
+    /// Validierungsfehler und vom Aufrufer ausgeloeste Abbrueche werden nie wiederholt.
+    /// </summary>
+    private static bool IsTransient(Exception ex, CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        return ex switch
+        {
+            HttpRequestException { StatusCode: { } status } => IsTransientStatus(status),
+            HttpRequestException hre => IsConnectionLevel(hre.HttpRequestError) || HasNetworkInner(hre),
+            TaskCanceledException => true, // HttpClient-Timeout (Aufrufer-Abbruch ist oben ausgeschlossen)
+            IOException => true,
+            _ => false
+        };
+    }
+
+    private static bool IsConnectionLevel(HttpRequestError error) =>
+        error is HttpRequestError.ConnectionError or HttpRequestError.SecureConnectionError
+            or HttpRequestError.NameResolutionError or HttpRequestError.ProxyTunnelError;
+
+    private static bool HasNetworkInner(Exception ex)
+    {
+        for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
+        {
+            if (inner is SocketException or IOException)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static (string Phase, SocketError? SocketError, HttpRequestError? HttpRequestError) Describe(Exception ex)
+    {
+        SocketError? socketError = null;
+        for (Exception? current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is SocketException se)
+            {
+                socketError = se.SocketErrorCode;
+            }
+        }
+
+        var requestError = (ex as HttpRequestException)?.HttpRequestError;
+        var phase = ex switch
+        {
+            HttpRequestException { StatusCode: { } status } => $"HTTP-Status {(int)status}",
+            TaskCanceledException => "Timeout",
+            HttpRequestException hre when IsConnectionLevel(hre.HttpRequestError) => "Verbindungsaufbau/TLS",
+            _ when socketError is not null || HasNetworkInner(ex) => "nach Verbindungsaufbau: Verbindung ohne Antwort beendet",
+            _ => "unbekannt"
+        };
+
+        return (phase, socketError, requestError);
+    }
+
     public Task<string> GetCatalogReportAsJsonAsync(
         string functionName,
         string? period = null,
@@ -246,6 +402,15 @@ public class GraphApiClient
         {
             throw new ArgumentException(
                 $"Unbekannter Report '{functionName}'. Nutze zuerst den Reports-Katalog.");
+        }
+
+        if (def.DelegatedOnly)
+        {
+            // Graph liefert hierfuer mit App-only-Token immer 401 "Application is not authorized" (Doku: Application
+            // "Not supported"). Klar abweisen statt einen sinnlosen Graph-Aufruf zu machen.
+            throw new NotSupportedException(
+                $"Der Report '{functionName}' unterstuetzt laut Microsoft Graph keine Application-Permissions (nur delegiert, " +
+                "Nutzer mit Global Reader oder Global Administrator) und ist im App-only-Betrieb dieses Servers nicht verfuegbar.");
         }
 
         string path;
