@@ -183,4 +183,19 @@ public static class ReportCatalog
     }.ToDictionary(r => r.FunctionName, r => r, StringComparer.OrdinalIgnoreCase);
 
     public static readonly string[] AllowedPeriods = { "D7", "D30", "D90", "D180" };
+
+    /// <summary>
+    /// Die Microsoft-365-Copilot-Usage-Reports (Graph Beta) lehnen D30 ab ("The period value 'RL30' is not supported
+    /// with version 'v2'. Use 'RL28' instead."). Erlaubt sind D7, D28, D90 und D180 (gegen den Tenant geprueft).
+    /// </summary>
+    public static readonly string[] CopilotAllowedPeriods = { "D7", "D28", "D90", "D180" };
+
+    public static string[] GetAllowedPeriods(ReportDefinition definition) =>
+        IsCopilotReport(definition) ? CopilotAllowedPeriods : AllowedPeriods;
+
+    public static string GetDefaultPeriod(ReportDefinition definition) =>
+        IsCopilotReport(definition) ? "D28" : "D30";
+
+    private static bool IsCopilotReport(ReportDefinition definition) =>
+        definition.FunctionName.StartsWith("getMicrosoft365Copilot", StringComparison.OrdinalIgnoreCase);
 }
