@@ -1,7 +1,7 @@
 # Prompting-Leitfaden für KI-Coding-Agenten
 
 Ziel: Aufgaben so formulieren, dass der Agent die richtigen Dateien findet, die Design-Entscheidungen respektiert und nichts Wichtiges vergisst.
-Grundlage: [`CODE-REFERENCE.md`](CODE-REFERENCE.md), [`DESIGN-DECISION-MAP.md`](DESIGN-DECISION-MAP.md), [`adr/`](adr/README.md), [`../AGENTS.md`](../AGENTS.md).
+Grundlage: [`DEPLOYMENT-RUNBOOK.md`](DEPLOYMENT-RUNBOOK.md), [`DEBUGGING.md`](DEBUGGING.md), [`CODE-REFERENCE.md`](CODE-REFERENCE.md), [`DESIGN-DECISION-MAP.md`](DESIGN-DECISION-MAP.md), [`adr/`](adr/README.md), [`../AGENTS.md`](../AGENTS.md).
 
 ## 1. Aufbau eines guten Prompts
 1. **Ziel** in einem Satz (Verhalten, nicht Implementierung).

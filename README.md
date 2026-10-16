@@ -144,4 +144,6 @@ Dieser Weg existiert noch als Referenz/Ideengeber (u. a. für die Microsoft-Grap
 - [`docs/CODE-REFERENCE.md`](docs/CODE-REFERENCE.md) – Code-Segmente im Detail
 - [`docs/adr/`](docs/adr/README.md) – Architecture Decision Records (15 Entscheidungen)
 - [`docs/DESIGN-DECISION-MAP.md`](docs/DESIGN-DECISION-MAP.md) – Entscheidung → Code-Fundstelle
+- [`docs/DEPLOYMENT-RUNBOOK.md`](docs/DEPLOYMENT-RUNBOOK.md) – exakter Deployment-Ablauf
+- [`docs/DEBUGGING.md`](docs/DEBUGGING.md) – lokales Debugging, Inspector, Fehlerbilder
 - [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) – Prompt-Vorlagen für KI-Coding-Agenten
