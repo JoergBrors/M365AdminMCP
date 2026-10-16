@@ -49,4 +49,7 @@ module "infra" {
   mcp_app_client_secret     = module.entra_id.mcp_app_client_secret
   mcp_oauth_client_ids      = module.entra_id.mcp_oauth_client_ids
   copilot_mcp_client_secret = module.entra_id.copilot_mcp_client_secret
+
+  azure_health_subscription_ids = var.azure_health_subscription_ids
+  azure_health_role_name        = var.azure_health_role_name
 }

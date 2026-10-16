@@ -23,6 +23,7 @@ Entscheidung → Code: [`../DESIGN-DECISION-MAP.md`](../DESIGN-DECISION-MAP.md).
 | [0013](0013-free-tier-app-service.md) | Free-Tier (F1) App Service Plan | Akzeptiert |
 | [0014](0014-doppelte-mcp-authentifizierung-api-key.md) | Zweiter Auth-Weg: `X-MCP-API-Key` | Akzeptiert (mit Risiko) |
 | [0015](0015-lokales-debugging-mit-inspector.md) | Lokales Debugging ohne Auth mit MCP Inspector | Akzeptiert |
+| [0016](0016-microsoft-health-intune-und-azure.md) | Microsoft Health: Intune/M365 (Graph) und Azure Service/Resource Health (ARM) | Akzeptiert |
 
 Alle ADRs wurden **rückwirkend** aus dem Code und der bestehenden Doku abgeleitet (Datum der Dokumentation:
 2026-10-16). Wo die ursprüngliche Motivation nur aus Code-Kommentaren stammt, steht das im Kontext.

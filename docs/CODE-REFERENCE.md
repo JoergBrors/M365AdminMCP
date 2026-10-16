@@ -68,6 +68,7 @@ Jede Klasse: `[McpServerToolType]`, Konstruktor-Injektion, Methoden `[McpServerT
 | `M365AdoptionTool` | `GetOffice365ActiveUserDetail`, `GetM365AppUserDetail` | `GET /api/m365/reports/{name}` | `period`=D30 |
 | `M365AdoptionCatalogTool` | `ListAdoptionReports` | `GET /api/m365/reports/catalog` | `category?` |
 | | `GetAdoptionReport` | `GET /api/m365/reports/{reportName}` | `reportName`, `period?`, `date?`, `serviceArea?`, `appId?` |
+| `MicrosoftHealthTools` | `intune_service_health`, `intune_service_incidents`, `microsoft_service_messages`, `azure_service_health`, `azure_resource_health`, `azure_subscription_resource_health`, `microsoft_health_summary` | `GET /api/microsoft-health/*` | siehe `docs/microsoft-health/02-implementation.md` (ADR-0016) |
 | `TasksTool` | `GetTasksAppOnly` | `GET /api/tasks` | – |
 | | `GetTasksDelegated` | `GET /api/tasks` (OBO-Token) | `incomingUserAccessToken` |
 
@@ -114,6 +115,7 @@ Singleton. Konstruktor wählt Pfad: `GraphAuth:UseManagedIdentity=true` → `Man
 | `TasksController` | `api/tasks` | `GET` (callerType app-only/delegated + statische Liste), `POST` (fügt String hinzu; nicht persistent, nicht threadsicher – Demo) |
 | `M365StatusController` | `api/m365/status` | `health-overviews`, `health-overviews/degraded`, `health-overviews/{id}?expandIssues&includeResolvedIssues`, `issues` |
 | `M365MessagesController` | `api/m365/messages` | `GET ?odataFilter` |
+| `MicrosoftHealthController` | `api/microsoft-health` | `intune/health`, `intune/incidents`, `messages`, `azure/events`, `azure/resource`, `azure/subscription-resources`, `summary` (Clients in `Health/`, ADR-0016) |
 | `M365ReportsController` | `api/m365/reports` | `GET catalog?category`, `GET {reportName}?period&date&serviceArea&appId` |
 Alle: `[Authorize(Policy = PolicyNames.TasksReadWrite)]`, Antworten als `ContentResult` mit `application/json` (Rohdurchreichung von Graph-JSON).
 

@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 using ApiServer.Auth;
+using ApiServer.Health;
 using ApiServer.Services;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using System.Security.Claims;
 
@@ -55,6 +57,19 @@ builder.Services.AddSingleton<GraphApiClient>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("GraphNoRedirect")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+
+// --- Microsoft Health (Intune/Microsoft 365 ueber Graph, Azure Service/Resource Health ueber ARM), nur lesend ---
+builder.Services.AddSingleton<IValidateOptions<MicrosoftHealthOptions>, MicrosoftHealthOptionsValidator>();
+builder.Services.AddOptions<MicrosoftHealthOptions>()
+    .Bind(builder.Configuration.GetSection(MicrosoftHealthOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddHttpClient(HealthRequestRunner.HttpClientName)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false }); // Bearer-Token nie an Weiterleitungsziele
+builder.Services.AddSingleton<ArmTokenService>();
+builder.Services.AddSingleton<HealthRequestRunner>();
+builder.Services.AddSingleton<MicrosoftServiceHealthClient>();
+builder.Services.AddSingleton<AzureResourceHealthClient>();
+builder.Services.AddSingleton<MicrosoftHealthSummaryService>();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo

@@ -7,3 +7,7 @@ environment_name             = "<env>"
 location                     = "westeurope"
 app_service_sku              = "F1" # Free-Tier - kostenlos. Fuer staging/prod eher "B1"/"S1" erwaegen (Always On, SLA).
 log_analytics_daily_quota_gb = 1    # deckelt Log-Analytics-Kosten auf Cent-Beträge. Fuer prod ggf. -1 (kein Limit).
+
+# Optional: Azure Service/Resource Health fuer diese Subscriptions freigeben (MCP-Tools azure_*). Standard: leer = deaktiviert.
+# Erfordert, dass der Deployer auf den Subscriptions Rollenzuweisungen anlegen darf (siehe docs/microsoft-health/04-terraform.md).
+# azure_health_subscription_ids = ["00000000-0000-0000-0000-000000000000"]

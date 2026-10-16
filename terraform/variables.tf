@@ -38,3 +38,15 @@ variable "copilot_mcp_redirect_uris" {
   type        = list(string)
   default     = []
 }
+
+variable "azure_health_subscription_ids" {
+  description = "Subscription-IDs fuer Azure Service/Resource Health (MCP-Tools azure_*). Leer = deaktiviert. Eine Rollenzuweisung auf Subscription-Ebene erfordert vom Deployer (CI-Principal) die Berechtigung 'Microsoft.Authorization/roleAssignments/write' auf dieser Subscription (z. B. 'Role Based Access Control Administrator')."
+  type        = list(string)
+  default     = []
+}
+
+variable "azure_health_role_name" {
+  description = "Azure-RBAC-Rolle fuer Resource Health (Standard: 'Service Health Security Reader')."
+  type        = string
+  default     = "Service Health Security Reader"
+}
