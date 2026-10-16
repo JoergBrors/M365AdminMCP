@@ -137,7 +137,7 @@ resource "azurerm_linux_web_app" "api" {
     }
   }
 
-  app_settings = {
+  app_settings = merge({
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string
     "AzureAd__TenantId"                     = var.tenant_id
     "AzureAd__ClientId"                     = var.api_app_id
@@ -147,7 +147,16 @@ resource "azurerm_linux_web_app" "api" {
     "SwaggerOAuth__ClientId"                = var.swagger_client_app_id
     "SwaggerOAuth__Scope"                   = "${var.api_app_identifier_uri}/Tasks.ReadWrite"
     "ASPNETCORE_ENVIRONMENT"                = "Production"
-  }
+
+    # Microsoft Health (Intune/Microsoft 365 ueber Graph, Azure Service/Resource Health ueber ARM) - nur lesend.
+    # Azure-Abfragen sind nur fuer die unten gelisteten Subscriptions moeglich; ohne Eintrag ist der Azure-Teil deaktiviert.
+    "MicrosoftHealth__Enabled"      = "true"
+    "MicrosoftHealth__TenantId"     = var.tenant_id
+    "MicrosoftHealth__EnableIntune" = "true"
+    "MicrosoftHealth__EnableAzure"  = tostring(length(var.azure_health_subscription_ids) > 0)
+    },
+    { for index, subscription_id in var.azure_health_subscription_ids : "MicrosoftHealth__AllowedSubscriptionIds__${index}" => subscription_id }
+  )
 }
 
 resource "azurerm_linux_web_app" "mcp" {
@@ -221,4 +230,16 @@ resource "azuread_app_role_assignment" "api_managed_identity_to_graph_reports" {
   app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["Reports.Read.All"]
   principal_object_id = azurerm_linux_web_app.api.identity[0].principal_id
   resource_object_id  = data.azuread_service_principal.msgraph.object_id
+}
+
+# --- Azure Resource Health: lesender Zugriff der API-Identitaet (Managed Identity) ---
+# Nur fuer die in azure_health_subscription_ids gelisteten Subscriptions (Standard: keine). Built-in-Rolle mit ausschliesslich
+# Microsoft.ResourceHealth-Leseaktionen (events/read, AvailabilityStatuses/read, AvailabilityStatuses/current/read) statt Reader/Contributor.
+# Die Zuweisung auf Subscription-Ebene braucht beim Deployer 'Microsoft.Authorization/roleAssignments/write' auf der Subscription.
+resource "azurerm_role_assignment" "api_azure_health_reader" {
+  for_each             = toset(var.azure_health_subscription_ids)
+  scope                = "/subscriptions/${each.value}"
+  role_definition_name = var.azure_health_role_name
+  principal_id         = azurerm_linux_web_app.api.identity[0].principal_id
+  principal_type       = "ServicePrincipal"
 }

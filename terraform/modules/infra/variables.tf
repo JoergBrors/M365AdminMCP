@@ -69,3 +69,20 @@ variable "copilot_mcp_client_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "azure_health_subscription_ids" {
+  description = "Subscription-IDs, deren Azure Service/Resource Health die API-Identitaet lesen darf (Allowlist der Anwendung + RBAC-Zuweisung je Subscription). Leer = Azure-Health-Funktionen deaktiviert, keine RBAC-Zuweisung."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for id in var.azure_health_subscription_ids : can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", id))])
+    error_message = "azure_health_subscription_ids darf nur gueltige GUIDs enthalten."
+  }
+}
+
+variable "azure_health_role_name" {
+  description = "Azure-RBAC-Rolle fuer den lesenden Zugriff auf Resource Health. Standard: Built-in-Rolle 'Service Health Security Reader' (nur Microsoft.ResourceHealth-Leseaktionen). Alternative: 'Reader' (breiter)."
+  type        = string
+  default     = "Service Health Security Reader"
+}

@@ -20,6 +20,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - run: dotnet build EntraMcpMvp.sln
+      - run: dotnet test EntraMcpMvp.sln --no-build
 
   terraform-plan:
     needs: build

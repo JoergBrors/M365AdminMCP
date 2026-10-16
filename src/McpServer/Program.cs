@@ -102,7 +102,8 @@ builder.Services
     .WithTools<M365StatusTool>()
     .WithTools<M365MessagesTool>()
     .WithTools<M365AdoptionTool>()
-    .WithTools<M365AdoptionCatalogTool>();
+    .WithTools<M365AdoptionCatalogTool>()
+    .WithTools<MicrosoftHealthTools>();
 
 var app = builder.Build();
 

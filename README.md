@@ -99,7 +99,7 @@ Voraussetzungen: Node.js ≥ 22.19.0, PowerShell 7, lokale `appsettings.Developm
 
 Konfiguration **„Debug API + MCP + Inspector“** wählen und **F5** drücken. Das startet nacheinander: Aufräumen eigener Alt-Prozesse → Build →
 gepinnten [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (`tools/mcp-inspector`, `127.0.0.1:6274`, zufälliger Sitzungstoken) → ApiServer + McpServer im Debugger.
-Sobald beide `/healthz` beantworten, öffnet sich der Browser und der Inspector verbindet sich selbst mit `http://localhost:5143/mcp`; die 11 Tools sind sofort sichtbar, Breakpoints in MCP und API greifen.
+Sobald beide `/healthz` beantworten, öffnet sich der Browser und der Inspector verbindet sich selbst mit `http://localhost:5143/mcp`; die 18 Tools sind sofort sichtbar, Breakpoints in MCP und API greifen.
 Beim Beenden der Debug-Session werden Inspector und Server-Prozesse dieses Repos beendet. Details, Sicherheit und Fehlerbilder: [`docs/DEBUGGING.md`](docs/DEBUGGING.md), [ADR-0015](docs/adr/0015-lokales-debugging-mit-inspector.md).
 
 `McpAuth__RequireAuthentication=false` gilt nur in dieser Launch-Konfiguration. Außerhalb von `Development` verweigert der Server den Start, und ohne Auth sind nur Loopback-Aufrufe
@@ -150,3 +150,4 @@ Dieser Weg existiert noch als Referenz/Ideengeber (u. a. für die Microsoft-Grap
 - [`docs/DEPLOYMENT-RUNBOOK.md`](docs/DEPLOYMENT-RUNBOOK.md) – exakter Deployment-Ablauf
 - [`docs/DEBUGGING.md`](docs/DEBUGGING.md) – lokales Debugging, Inspector, Fehlerbilder
 - [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) – Prompt-Vorlagen für KI-Coding-Agenten
+- [`docs/microsoft-health/`](docs/microsoft-health/01-existing-architecture.md) – Intune-/Azure-Health-Tools: Architektur, Implementierung, Berechtigungen, Terraform, Betrieb

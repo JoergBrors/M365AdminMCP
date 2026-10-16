@@ -65,6 +65,7 @@ gh pr create --base main
 - [`docs/DESIGN-DECISION-MAP.md`](docs/DESIGN-DECISION-MAP.md) + [`docs/adr/`](docs/adr/README.md) — Entscheidungen (ADR-0001..0015) und wo sie im Code umgesetzt sind
 - [`docs/DEPLOYMENT-RUNBOOK.md`](docs/DEPLOYMENT-RUNBOOK.md) — exakter Deployment-Ablauf (Branch → PR → Merge → Smoke-Tests, Rollback, Fehlerbilder)
 - [`docs/DEBUGGING.md`](docs/DEBUGGING.md) — lokales Debugging mit VS Code + MCP Inspector, Azure/Tunnel-Varianten, Fehlerbilder
+- [`docs/microsoft-health/`](docs/microsoft-health/01-existing-architecture.md) — Intune-/Azure-Health-Tools (ADR-0016): Berechtigungsmatrix, Terraform (`azure_health_subscription_ids`), Betrieb
 - [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) — Prompt-Vorlagen und Definition of Done
 - [`README.md`](README.md) — Setup, Ordnerstruktur, Branch-Workflow
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Auth-Flows (OBO/App-only), OAuth-Proxy-Details, vollständiger Tool-Katalog
