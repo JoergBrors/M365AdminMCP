@@ -92,6 +92,19 @@ pwsh ./scripts/Export-TerraformLocalSettings.ps1 -Environment dev
 # 6) Server lokal starten
 dotnet run --project src/ApiServer   # http://localhost:5043 / https://localhost:7043
 dotnet run --project src/McpServer   # http://localhost:5143 / https://localhost:7143
+
+### Lokal testen mit dem MCP Inspector (VS Code Debug)
+
+Voraussetzungen: Node.js ≥ 22.19.0, PowerShell 7, lokale `appsettings.Development.json` (`pwsh ./scripts/Export-TerraformLocalSettings.ps1 -Environment dev`).
+
+Konfiguration **„Debug API + MCP + Inspector“** wählen und **F5** drücken. Das startet nacheinander: Aufräumen eigener Alt-Prozesse → Build →
+gepinnten [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (`tools/mcp-inspector`, `127.0.0.1:6274`, zufälliger Sitzungstoken) → ApiServer + McpServer im Debugger.
+Sobald beide `/healthz` beantworten, öffnet sich der Browser und der Inspector verbindet sich selbst mit `http://localhost:5143/mcp`; die 11 Tools sind sofort sichtbar, Breakpoints in MCP und API greifen.
+Beim Beenden der Debug-Session werden Inspector und Server-Prozesse dieses Repos beendet. Details, Sicherheit und Fehlerbilder: [`docs/DEBUGGING.md`](docs/DEBUGGING.md), [ADR-0015](docs/adr/0015-lokales-debugging-mit-inspector.md).
+
+`McpAuth__RequireAuthentication=false` gilt nur in dieser Launch-Konfiguration. Außerhalb von `Development` verweigert der Server den Start, und ohne Auth sind nur Loopback-Aufrufe
+mit `localhost`-Host-Header erlaubt (Tunnel werden mit 403 abgewiesen). Das Azure-Deployment (OAuth, Managed Identity, Terraform) bleibt unverändert.
+
 ```
 
 Details zu allen Terraform-Ressourcen, Kosten, CI/CD-Ablauf und den MCP-OAuth-Clients: siehe [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Vollständige Architektur inkl. Auth-Flows und Tool-Katalog: siehe [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -128,3 +141,12 @@ Dieser Weg existiert noch als Referenz/Ideengeber (u. a. für die Microsoft-Grap
 - Secrets werden lokal nur temporär gehalten und landen im Key Vault – nie im Klartext ins Git-Repo committen (`.gitignore` ist entsprechend vorbereitet).
 - Das Repository ist **öffentlich** (GitHub Free-Plan erlaubt Branch-Protection nur bei öffentlichen Repos). Es sind keine echten Secrets im Code oder in der Historie enthalten – alle sensiblen Werte (Client-Secrets, Terraform-Outputs) sind über `sensitive = true` markiert bzw. liegen ausschließlich im Azure Key Vault.
 - Dies ist ein reales, produktiv deploybares Setup (nicht nur ein Proof-of-Concept) – es fehlen aber bewusst manche Enterprise-Härtungen (siehe "Offene Architektur-Fragen" in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)), z. B. Multi-Tenant-Unterstützung, Zertifikat statt Client-Secret, Netzwerksegmentierung.
+
+## Entwickler-Dokumentation
+
+- [`docs/CODE-REFERENCE.md`](docs/CODE-REFERENCE.md) – Code-Segmente im Detail
+- [`docs/adr/`](docs/adr/README.md) – Architecture Decision Records (15 Entscheidungen)
+- [`docs/DESIGN-DECISION-MAP.md`](docs/DESIGN-DECISION-MAP.md) – Entscheidung → Code-Fundstelle
+- [`docs/DEPLOYMENT-RUNBOOK.md`](docs/DEPLOYMENT-RUNBOOK.md) – exakter Deployment-Ablauf
+- [`docs/DEBUGGING.md`](docs/DEBUGGING.md) – lokales Debugging, Inspector, Fehlerbilder
+- [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) – Prompt-Vorlagen für KI-Coding-Agenten

@@ -43,6 +43,42 @@
       "problemMatcher": []
     },
     {
+      "label": "mcp-inspector",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/Start-McpInspector.ps1"
+      ],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "mcp-inspector",
+        "pattern": {
+          "regexp": "^\\[inspector\\] ERROR (.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[inspector\\] starting",
+          "endsPattern": "^\\[inspector\\] ready"
+        }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always" }
+    },
+    {
+      "label": "prepare-inspector-debug",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "stop-local-debug-servers",
+        "build",
+        "mcp-inspector"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "prepare-combined-debug",
       "dependsOrder": "sequence",
       "dependsOn": [

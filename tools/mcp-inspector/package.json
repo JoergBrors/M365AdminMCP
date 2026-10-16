@@ -1,0 +1,9 @@
+{
+  "name": "m365adminmcp-inspector-pin",
+  "private": true,
+  "description": "Pinnt den MCP Inspector (v2) fuer das lokale VS-Code-Debugging reproduzierbar. Nicht deployed.",
+  "engines": { "node": ">=22.19.0" },
+  "dependencies": {
+    "@modelcontextprotocol/inspector": "2.11.0"
+  }
+}

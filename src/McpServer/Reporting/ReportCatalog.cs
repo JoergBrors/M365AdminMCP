@@ -19,7 +19,9 @@ public enum ReportParamMode
     Special
 }
 
-public record ReportDefinition(string FunctionName, string Category, string Description, ReportParamMode ParamMode);
+/// <param name="DelegatedOnly">Graph unterstuetzt fuer diesen Report keine Application-Permissions (nur delegiert, Nutzer mit
+/// Global Reader/Global Administrator). Der App-only betriebene Server kann ihn nicht abrufen.</param>
+public record ReportDefinition(string FunctionName, string Category, string Description, ReportParamMode ParamMode, bool DelegatedOnly = false);
 
 /// <summary>
 /// Vollständiger Katalog der Microsoft Graph BETA Adoption-/Usage-Report-Endpunkte unter reportRoot
@@ -114,7 +116,7 @@ public static class ReportCatalog
         new("getOffice365GroupsActivityFileCounts", "Microsoft 365 groups activity", "Gesamtzahl Dateien und aktive Dateien across Gruppen-Sites.", ReportParamMode.PeriodOnly),
 
         // --- Microsoft Graph API usage (Sonderfall mit eigenen Parametern) ---
-        new("getApiUsage", "Microsoft Graph API usage", "Nutzung der Microsoft Graph API (optional gefiltert nach serviceArea/appId).", ReportParamMode.Special),
+        new("getApiUsage", "Microsoft Graph API usage", "NICHT VERFUEGBAR (nur delegiert, App-only nicht unterstuetzt): Nutzung der Microsoft Graph API. Laut Microsoft nur mit Nutzer-Token (Global Reader/Global Administrator) abrufbar.", ReportParamMode.Special, DelegatedOnly: true),
 
         // --- OneDrive activity ---
         new("getOneDriveActivityUserDetail", "OneDrive activity", "OneDrive-Aktivität je Nutzer.", ReportParamMode.PeriodOrDate),
@@ -183,4 +185,24 @@ public static class ReportCatalog
     }.ToDictionary(r => r.FunctionName, r => r, StringComparer.OrdinalIgnoreCase);
 
     public static readonly string[] AllowedPeriods = { "D7", "D30", "D90", "D180" };
+
+    /// <summary>
+    /// Die Microsoft-365-Copilot-Usage-Reports (Graph Beta) lehnen D30 ab ("The period value 'RL30' is not supported
+    /// with version 'v2'. Use 'RL28' instead."). Erlaubt sind D7, D28, D90 und D180 (gegen den Tenant geprueft).
+    /// </summary>
+    public static readonly string[] CopilotAllowedPeriods = { "D7", "D28", "D90", "D180" };
+
+    /// <summary>getApiUsage kennt laut Microsoft-Doku nur D7, D30 und D60 (aktuell ohnehin nur delegiert abrufbar).</summary>
+    public static readonly string[] ApiUsageAllowedPeriods = { "D7", "D30", "D60" };
+
+    public static string[] GetAllowedPeriods(ReportDefinition definition) =>
+        IsCopilotReport(definition) ? CopilotAllowedPeriods
+        : definition.FunctionName.Equals("getApiUsage", StringComparison.OrdinalIgnoreCase) ? ApiUsageAllowedPeriods
+        : AllowedPeriods;
+
+    public static string GetDefaultPeriod(ReportDefinition definition) =>
+        IsCopilotReport(definition) ? "D28" : "D30";
+
+    private static bool IsCopilotReport(ReportDefinition definition) =>
+        definition.FunctionName.StartsWith("getMicrosoft365Copilot", StringComparison.OrdinalIgnoreCase);
 }

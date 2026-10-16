@@ -2,6 +2,15 @@
   "version": "0.2.0",
   "compounds": [
     {
+      "name": "Debug API + MCP + Inspector",
+      "configurations": [
+        "Debug ApiServer (Inspector, no prep)",
+        "Debug McpServer (Inspector, no prep)"
+      ],
+      "preLaunchTask": "prepare-inspector-debug",
+      "stopAll": true
+    },
+    {
       "name": "Debug API + MCP",
       "configurations": [
         "Debug ApiServer (no prep)",
@@ -72,6 +81,41 @@
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_URLS": "http://localhost:5043;https://localhost:7043"
+      }
+    },
+    {
+      "name": "Debug ApiServer (Inspector, no prep)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/ApiServer/bin/Debug/net10.0/ApiServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/ApiServer",
+      "stopAtEntry": false,
+      "presentation": {
+        "hidden": true
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5043;https://localhost:7043"
+      }
+    },
+    {
+      "name": "Debug McpServer (Inspector, no prep)",
+      "type": "coreclr",
+      "request": "launch",
+      "postDebugTask": "stop-local-debug-servers",
+      "program": "${workspaceFolder}/src/McpServer/bin/Debug/net10.0/McpServer.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/McpServer",
+      "stopAtEntry": false,
+      "presentation": {
+        "hidden": true
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5143;https://localhost:7143",
+        "ApiServer__BaseUrl": "http://localhost:5043",
+        "McpAuth__RequireAuthentication": "false"
       }
     },
     {

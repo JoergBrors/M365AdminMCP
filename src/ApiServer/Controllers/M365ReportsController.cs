@@ -31,10 +31,15 @@ public class M365ReportsController : ControllerBase
                 name = r.FunctionName,
                 category = r.Category,
                 description = r.Description,
+                available = !r.DelegatedOnly,
                 parameters = r.ParamMode switch
                 {
-                    ReportParamMode.PeriodOrDate => "period (D7/D30/D90/D180) ODER date (YYYY-MM-DD) - genau eines von beiden",
-                    ReportParamMode.PeriodOnly => "period (D7/D30/D90/D180), Standard D30",
+                    ReportParamMode.PeriodOrDate => r.FunctionName.StartsWith("getMicrosoft365Copilot", StringComparison.OrdinalIgnoreCase)
+                        ? "period (D7/D28/D90/D180, Standard D28) ODER date (YYYY-MM-DD) - genau eines von beiden"
+                        : "period (D7/D30/D90/D180) ODER date (YYYY-MM-DD) - genau eines von beiden",
+                    ReportParamMode.PeriodOnly => r.FunctionName.StartsWith("getMicrosoft365Copilot", StringComparison.OrdinalIgnoreCase)
+                        ? "period (D7/D28/D90/D180), Standard D28"
+                        : "period (D7/D30/D90/D180), Standard D30",
                     ReportParamMode.None => "keine Parameter (aktueller Zustand)",
                     ReportParamMode.Special => "period (optional), serviceArea (optional), appId (optional)",
                     _ => "unbekannt"

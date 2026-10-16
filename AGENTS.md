@@ -61,6 +61,11 @@ gh pr create --base main
 
 ## Tiefere Doku (nur bei Bedarf laden)
 
+- [`docs/CODE-REFERENCE.md`](docs/CODE-REFERENCE.md) — jedes Code-Segment (Verantwortung, Schnittstellen, Konfiguration, Lücken)
+- [`docs/DESIGN-DECISION-MAP.md`](docs/DESIGN-DECISION-MAP.md) + [`docs/adr/`](docs/adr/README.md) — Entscheidungen (ADR-0001..0015) und wo sie im Code umgesetzt sind
+- [`docs/DEPLOYMENT-RUNBOOK.md`](docs/DEPLOYMENT-RUNBOOK.md) — exakter Deployment-Ablauf (Branch → PR → Merge → Smoke-Tests, Rollback, Fehlerbilder)
+- [`docs/DEBUGGING.md`](docs/DEBUGGING.md) — lokales Debugging mit VS Code + MCP Inspector, Azure/Tunnel-Varianten, Fehlerbilder
+- [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) — Prompt-Vorlagen und Definition of Done
 - [`README.md`](README.md) — Setup, Ordnerstruktur, Branch-Workflow
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Auth-Flows (OBO/App-only), OAuth-Proxy-Details, vollständiger Tool-Katalog
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — jede Terraform-Ressource/jeder Output/jede Variable, CI/CD-Ablauf, CI-Berechtigungs-Bootstrap im Detail, Kosten
