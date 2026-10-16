@@ -207,6 +207,7 @@ public class HealthRequestRunner
                 401 => new HealthApiException("unauthorized", $"{uri.Host} lehnt das Zugriffstoken ab (HTTP 401). {detail}".Trim(), status),
                 403 => new HealthApiException("forbidden", $"Zugriff auf {uri.Host} verweigert (HTTP 403): erforderliche Berechtigung/Rolle fehlt. {detail}".Trim(), status),
                 404 => new HealthApiException("not_found", $"Ressource bei {uri.Host} nicht gefunden (HTTP 404). {detail}".Trim(), status),
+                409 => new HealthApiException("conflict", $"{uri.Host} meldet einen Konflikt (HTTP 409). {detail}".Trim(), status),
                 400 => new HealthApiException("bad_request", $"{uri.Host} lehnt die Anfrage ab (HTTP 400). {detail}".Trim(), status),
                 502 or 503 or 504 => new HealthApiException("upstream_unavailable", $"{uri.Host} voruebergehend nicht verfuegbar (HTTP {status}).", status),
                 _ => new HealthApiException("upstream_error", $"{uri.Host} antwortete mit HTTP {status}. {detail}".Trim(), status)
@@ -261,20 +262,27 @@ public class HealthRequestRunner
     private static TimeSpan WithJitter(TimeSpan delay) =>
         delay + TimeSpan.FromMilliseconds(delay.TotalMilliseconds * 0.2 * Random.Shared.NextDouble());
 
-    /// <summary>Liest error.code/error.message best-effort (gekuerzt). Antwort-Bodies von Graph/ARM enthalten keine Tokens.</summary>
+    /// <summary>
+    /// Liest code/message best-effort (gekuerzt). Graph liefert {"error":{code,message}}, Azure Resource Health teils flach
+    /// {"code","message"}. Antwort-Bodies enthalten keine Tokens.
+    /// </summary>
     private static async Task<string> TryReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         try
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             using var document = JsonDocument.Parse(body);
-            if (document.RootElement.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.Object)
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
             {
-                var code = error.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
-                var message = error.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
-                var text = string.Join(": ", new[] { code, message }.Where(x => !string.IsNullOrWhiteSpace(x)));
-                return text.Length > 300 ? text[..300] : text;
+                return string.Empty;
             }
+
+            var holder = root.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.Object ? error : root;
+            var code = holder.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+            var message = holder.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
+            var text = string.Join(": ", new[] { code, message }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            return text.Length > 300 ? text[..300] : text;
         }
         catch (Exception ex) when (ex is JsonException or HttpRequestException or IOException)
         {

@@ -32,6 +32,7 @@ Beispielanfragen an ein LLM: „Gibt es aktuell Intune-Störungen?“ → `intun
 | `forbidden` (`management.azure.com`) | RBAC-Rolle fehlt auf der Subscription | Variable `azure_health_subscription_ids` gesetzt und Rollenzuweisung vorhanden? Dauer bis zur Wirksamkeit 1–2 min. Lokal erwartet (keine Rolle). |
 | `unauthorized` | Token abgelehnt (Audience/Identität) | Managed Identity aktiv (`GraphAuth__UseManagedIdentity=true`), App Settings prüfen |
 | `token_acquisition_failed` | Identität/Konfiguration | Log-Eintrag mit Exception-Typ prüfen; lokal `AzureAd:ClientSecret` vorhanden? |
+| `conflict` (HTTP 409, `AuthError … resource provider has been registered`) | Resource Provider `Microsoft.ResourceHealth` ist in der Subscription nicht registriert (betrifft `availabilityStatuses`; `events` funktioniert trotzdem) | einmalig `az provider register --namespace Microsoft.ResourceHealth --subscription <id>` (benötigt `*/register/action` auf der Subscription, z. B. Contributor/Owner); Registrierung kann einige Minuten dauern |
 | `throttled` | HTTP 429 nach 3 Wiederholungen | später erneut; `maxResults`/Abfragehäufigkeit senken |
 | `upstream_unavailable`/`network_error`/`timeout` | 502/503/504, Netz, Zeitlimit | automatisch wiederholt; bei Dauer `RequestTimeoutSeconds` prüfen |
 | `subscription_not_allowed` | Subscription nicht in der Allowlist | `azure_health_subscription_ids` ergänzen (und RBAC) |
@@ -39,6 +40,14 @@ Beispielanfragen an ein LLM: „Gibt es aktuell Intune-Störungen?“ → `intun
 | `invalid_response` | unerwartete Antwortstruktur | Log prüfen; API-Änderung möglich |
 | `resource_not_found` | Resource ID falsch oder von Resource Health nicht unterstützt | ID prüfen |
 | `intune_service_not_found` | Tenant liefert keinen Intune-Eintrag | kein Gesundheitsurteil möglich |
+
+## 3a. Lokal testen (VS Code)
+
+1. Allowlist lokal setzen (außerhalb des Repos, `appsettings.Development.json` wird vom Export-Skript überschrieben):
+   `dotnet user-secrets set "MicrosoftHealth:AllowedSubscriptionIds:0" "<subscription-guid>" --project src/ApiServer` und mit `dotnet user-secrets list --project src/ApiServer` prüfen. Ohne Eintrag antworten die `azure_*`-Tools mit `disabled`.
+2. Die lokale API-Identität (Service Principal `api-server-<env>`, Client Secret) hat keine Azure-Rolle → `forbidden`. Für einen lokalen Erfolgstest dem Service Principal bewusst und temporär die Rolle *Service Health Security Reader* auf der Subscription geben (manuell, außerhalb von Terraform) und danach wieder entfernen.
+3. Mit Rolle: `azure_service_health` liefert Ereignisse. `azure_resource_health` und `azure_subscription_resource_health` brauchen zusätzlich den registrierten Resource Provider (sonst `conflict`, siehe oben).
+4. Dann F5 „Debug API + MCP + Inspector“ und die Tools im Inspector aufrufen.
 
 ## 4. Konfigurationsprüfung
 

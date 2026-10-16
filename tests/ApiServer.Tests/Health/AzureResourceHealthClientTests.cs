@@ -229,6 +229,34 @@ public class AzureResourceHealthClientTests
     }
 
     [Fact]
+    public async Task Flat_arm_error_body_with_409_is_reported_with_cause_and_registration_hint()
+    {
+        // Echte Antwort von Azure Resource Health, wenn der Resource Provider in der Subscription nicht registriert ist
+        var flat = "{\"code\":\"AuthError\",\"message\":\"An error occured in authentication or authorization. Make sure the resource provider has been registered with this subscription\"}";
+        var (client, h) = T.AzureClient((_, _) => T.Task_(T.Json(flat, HttpStatusCode.Conflict)));
+
+        var result = await client.GetSubscriptionAvailabilityAsync(T.SubA, null);
+
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("conflict", error.Code);
+        Assert.Equal(409, error.HttpStatus);
+        Assert.Contains("AuthError", error.Message);
+        Assert.Contains("az provider register --namespace Microsoft.ResourceHealth", error.Message);
+        Assert.Single(h.Handler.Requests); // 409 wird nicht wiederholt
+    }
+
+    [Fact]
+    public async Task Flat_arm_error_body_is_read_for_403_too()
+    {
+        var flat = "{\"code\":\"AuthorizationFailed\",\"message\":\"does not have authorization to perform action\"}";
+        var (client, _) = T.AzureClient((_, _) => T.Task_(T.Json(flat, HttpStatusCode.Forbidden)));
+
+        var result = await client.GetServiceHealthEventsAsync(T.SubA, null, null);
+
+        Assert.Contains("AuthorizationFailed: does not have authorization", result.Errors[0].Message);
+    }
+
+    [Fact]
     public async Task Resource_response_without_properties_is_still_mapped_defensively()
     {
         var (client, _) = T.AzureClient((_, _) => T.Task_(T.Json("{\"id\":\"x\"}")));

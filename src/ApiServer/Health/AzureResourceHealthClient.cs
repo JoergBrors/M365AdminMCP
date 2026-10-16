@@ -184,6 +184,9 @@ public class AzureResourceHealthClient
     {
         "forbidden" => ex.Message + " Der API-Identitaet fehlt die Azure-RBAC-Berechtigung (z. B. Rolle 'Service Health Security Reader') auf der Subscription.",
         "unauthorized" => ex.Message + " Pruefe die Identitaet der API (Managed Identity/Client Secret).",
+        "conflict" when ex.Message.Contains("resource provider", StringComparison.OrdinalIgnoreCase) =>
+            ex.Message + " Der Resource Provider 'Microsoft.ResourceHealth' ist in der Subscription vermutlich nicht registriert " +
+            "(Abhilfe: az provider register --namespace Microsoft.ResourceHealth).",
         _ => ex.Message
     };
 
