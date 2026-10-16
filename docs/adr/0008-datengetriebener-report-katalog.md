@@ -16,6 +16,8 @@ Der ApiServer baut den Graph-Pfad aus dem Katalogeintrag (`GraphApiClient.GetCat
 − LLM benötigt zwei Schritte (erst Katalog, dann Abruf).
 − **Bekannte Lücke:** `date`, `serviceArea` und `appId` werden nicht validiert und direkt in den Graph-Pfad interpoliert (`GraphApiClient`, Branches `PeriodOrDate` und `Special`). Das sollte durch Format-Prüfung (`yyyy-MM-dd`, GUID, Whitelist für `serviceArea`) geschlossen werden.
 − Beta-Endpunkte sind laut Microsoft „subject to change“.
+− **`getApiUsage` ist nur delegiert abrufbar** (Doku: Application „Not supported“; Nutzer mit Global Reader/Global Administrator). Mit dem App-only-Token des ApiServers antwortet Graph immer `401 Application is not authorized` – eine Terraform-Berechtigung behebt das nicht. Der Eintrag trägt `ReportDefinition.DelegatedOnly = true`: `GetCatalogReportAsJsonAsync` weist ihn mit `NotSupportedException` ab (kein Graph-Aufruf), der Katalog meldet `available: false` und die Beschreibung beginnt mit „NICHT VERFUEGBAR“. Erlaubte Perioden laut Doku: D7, D30, D60. Ein Delegated-Pfad (OBO mit Nutzer-Token) wäre eine Architekturentscheidung (siehe ADR-0006).
+− Copilot-Reports (`getMicrosoft365Copilot*`) akzeptieren D7/D28/D90/D180 (Standard D28), nicht D30.
 
 ## Umsetzung
 - `src/McpServer/Reporting/ReportCatalog.cs` (`ReportParamMode`, `ReportDefinition`, `ReportCatalog.Reports`, `AllowedPeriods`).

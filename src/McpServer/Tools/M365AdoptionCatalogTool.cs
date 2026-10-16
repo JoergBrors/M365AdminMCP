@@ -39,9 +39,9 @@ public class M365AdoptionCatalogTool
         string? period = null,
         [Description("Stichtag YYYY-MM-DD - nur bei '...Detail'-Reports, die period ODER date akzeptieren. Nicht gemeinsam mit period angeben.")]
         string? date = null,
-        [Description("Nur für 'getApiUsage': z.B. 'Exchange', 'SharePoint', 'OneDriveForBusiness', 'MicrosoftTeams', 'Yammer'.")]
+        [Description("Nur für 'getApiUsage' (derzeit nicht verfügbar: Microsoft unterstützt den Report nur delegiert, nicht app-only).")]
         string? serviceArea = null,
-        [Description("Nur für 'getApiUsage': Azure-AD-App-ID, auf die gefiltert werden soll.")]
+        [Description("Nur für 'getApiUsage' (derzeit nicht verfügbar, siehe serviceArea): Azure-AD-App-ID zum Filtern.")]
         string? appId = null)
     {
         var query = new List<string>();
