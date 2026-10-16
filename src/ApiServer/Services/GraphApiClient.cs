@@ -171,6 +171,23 @@ public class GraphApiClient
 
         var response = await noRedirectClient.GetAsync(jsonAttemptUrl, cancellationToken);
 
+        // Einzelne Reports (z.B. getOffice365ActiveUserCounts) liefern mit $format=application/json einen Graph-seitigen
+        // 400 ("UnknownError"), obwohl der Standardweg ohne $format (302 auf CSV-Download) funktioniert. Einmal ohne
+        // $format wiederholen; schlaegt auch das fehl, bleibt die urspruengliche Antwort fuer die Fehlermeldung erhalten.
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            var plainResponse = await noRedirectClient.GetAsync($"beta/{TrimLeadingSlash(reportPathWithoutQuery)}", cancellationToken);
+            if (plainResponse.IsSuccessStatusCode || (int)plainResponse.StatusCode is 301 or 302 or 307 or 308)
+            {
+                response.Dispose();
+                response = plainResponse;
+            }
+            else
+            {
+                plainResponse.Dispose();
+            }
+        }
+
         if (response.IsSuccessStatusCode &&
             response.Content.Headers.ContentType?.MediaType?.Contains("json") == true)
         {
@@ -180,7 +197,21 @@ public class GraphApiClient
         if ((int)response.StatusCode is 301 or 302 or 307 or 308 && response.Headers.Location is not null)
         {
             var downloadClient = _httpClientFactory.CreateClient();
-            var csv = await downloadClient.GetStringAsync(response.Headers.Location, cancellationToken);
+            string csv;
+            try
+            {
+                csv = await downloadClient.GetStringAsync(response.Headers.Location, cancellationToken);
+            }
+            catch (HttpRequestException ex)
+            {
+                // Der Download-Host (reports*.office.com) ist ein separater Microsoft-Dienst; fuer einzelne Reports bricht er
+                // die Verbindung ab (z.B. getOffice365ActiveUserCounts). Ursache im Fehlertext benennen statt nur "Verbindung geschlossen".
+                throw new HttpRequestException(
+                    $"Der CSV-Download des Reports '{reportPathWithoutQuery}' von Microsoft ({response.Headers.Location.Host}) ist fehlgeschlagen: {ex.Message}",
+                    ex,
+                    ex.StatusCode);
+            }
+
             return CsvJsonConverter.ConvertToJsonArray(csv);
         }
 
@@ -190,8 +221,17 @@ public class GraphApiClient
             return CsvJsonConverter.ConvertToJsonArray(body);
         }
 
-        response.EnsureSuccessStatusCode();
-        return string.Empty;
+        // Graph-Fehlertext mitgeben (enthaelt keine Tokens), sonst bleibt nur "400 (Bad Request)" ohne Ursache.
+        var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (errorBody.Length > 600)
+        {
+            errorBody = errorBody[..600];
+        }
+
+        throw new HttpRequestException(
+            $"Microsoft Graph antwortete mit {(int)response.StatusCode} ({response.StatusCode}) fuer '{reportPathWithoutQuery}': {errorBody}",
+            inner: null,
+            statusCode: response.StatusCode);
     }
 
     public Task<string> GetCatalogReportAsJsonAsync(
@@ -223,13 +263,13 @@ public class GraphApiClient
                 }
                 else
                 {
-                    var p = ValidatePeriod(period ?? "D30", functionName);
+                    var p = ValidatePeriod(period ?? ReportCatalog.GetDefaultPeriod(def), def);
                     path = $"/reports/{def.FunctionName}(period='{p}')";
                 }
                 break;
 
             case ReportParamMode.PeriodOnly:
-                var periodOnly = ValidatePeriod(period ?? "D30", functionName);
+                var periodOnly = ValidatePeriod(period ?? ReportCatalog.GetDefaultPeriod(def), def);
                 path = $"/reports/{def.FunctionName}(period='{periodOnly}')";
                 break;
 
@@ -239,7 +279,7 @@ public class GraphApiClient
 
             case ReportParamMode.Special when def.FunctionName == "getApiUsage":
                 var parts = new List<string>();
-                if (!string.IsNullOrWhiteSpace(period)) parts.Add($"period='{ValidatePeriod(period, functionName)}'");
+                if (!string.IsNullOrWhiteSpace(period)) parts.Add($"period='{ValidatePeriod(period, def)}'");
                 if (!string.IsNullOrWhiteSpace(serviceArea)) parts.Add($"serviceArea='{serviceArea}'");
                 if (!string.IsNullOrWhiteSpace(appId)) parts.Add($"appId='{appId}'");
                 path = parts.Count > 0 ? $"/reports/{def.FunctionName}({string.Join(",", parts)})" : $"/reports/{def.FunctionName}";
@@ -274,12 +314,13 @@ public class GraphApiClient
         return value.Replace("'", "''", StringComparison.Ordinal);
     }
 
-    private static string ValidatePeriod(string period, string functionName)
+    private static string ValidatePeriod(string period, ReportDefinition definition)
     {
-        if (!ReportCatalog.AllowedPeriods.Contains(period, StringComparer.OrdinalIgnoreCase))
+        var allowedPeriods = ReportCatalog.GetAllowedPeriods(definition);
+        if (!allowedPeriods.Contains(period, StringComparer.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
-                $"Ungueltiger period-Wert '{period}' fuer '{functionName}'. Erlaubt: {string.Join(", ", ReportCatalog.AllowedPeriods)}.");
+                $"Ungueltiger period-Wert '{period}' fuer '{definition.FunctionName}'. Erlaubt: {string.Join(", ", allowedPeriods)}.");
         }
 
         return period.ToUpperInvariant();

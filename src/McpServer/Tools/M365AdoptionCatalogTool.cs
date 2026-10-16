@@ -35,7 +35,7 @@ public class M365AdoptionCatalogTool
     public async Task<string> GetAdoptionReport(
         [Description("Exakter Report-Name aus ListAdoptionReports, z.B. 'getOffice365ActiveUserDetail' oder 'getTeamsUserActivityCounts'.")]
         string reportName,
-        [Description("Zeitraum D7/D30/D90/D180 - nur bei Reports, die 'period' unterstützen. Standard D30 falls weder period noch date angegeben.")]
+        [Description("Zeitraum D7/D30/D90/D180 - nur bei Reports, die 'period' unterstützen. Standard D30 (bei Microsoft-365-Copilot-Reports D28; dort sind nur D7/D28/D90/D180 erlaubt) falls weder period noch date angegeben.")]
         string? period = null,
         [Description("Stichtag YYYY-MM-DD - nur bei '...Detail'-Reports, die period ODER date akzeptieren. Nicht gemeinsam mit period angeben.")]
         string? date = null,
