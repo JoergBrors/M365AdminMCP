@@ -138,3 +138,10 @@ Dieser Weg existiert noch als Referenz/Ideengeber (u. a. für die Microsoft-Grap
 - Secrets werden lokal nur temporär gehalten und landen im Key Vault – nie im Klartext ins Git-Repo committen (`.gitignore` ist entsprechend vorbereitet).
 - Das Repository ist **öffentlich** (GitHub Free-Plan erlaubt Branch-Protection nur bei öffentlichen Repos). Es sind keine echten Secrets im Code oder in der Historie enthalten – alle sensiblen Werte (Client-Secrets, Terraform-Outputs) sind über `sensitive = true` markiert bzw. liegen ausschließlich im Azure Key Vault.
 - Dies ist ein reales, produktiv deploybares Setup (nicht nur ein Proof-of-Concept) – es fehlen aber bewusst manche Enterprise-Härtungen (siehe "Offene Architektur-Fragen" in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)), z. B. Multi-Tenant-Unterstützung, Zertifikat statt Client-Secret, Netzwerksegmentierung.
+
+## Entwickler-Dokumentation
+
+- [`docs/CODE-REFERENCE.md`](docs/CODE-REFERENCE.md) – Code-Segmente im Detail
+- [`docs/adr/`](docs/adr/README.md) – Architecture Decision Records (15 Entscheidungen)
+- [`docs/DESIGN-DECISION-MAP.md`](docs/DESIGN-DECISION-MAP.md) – Entscheidung → Code-Fundstelle
+- [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) – Prompt-Vorlagen für KI-Coding-Agenten
