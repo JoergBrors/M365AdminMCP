@@ -42,3 +42,5 @@ Die Nutzeridentität wird **nicht** per OBO übertragen. Der McpServer baut aus 
 - **Quelle nur validierte Claims,** nie Client-Header oder Tool-Parameter. API-Key-Zugriff (ADR-0014) trägt `auth=apikey` ohne Nutzer-ID.
 - **Datenschutz:** `oid`/`tid` sind pseudonym, der UPN ist ein personenbezogenes Datum. Abschaltbar mit `Audit:LogUserPrincipalName=false`.
 - **Grenze:** Die Werte sind so vertrauenswürdig wie der McpServer selbst (er ist die einzige Identität mit der API-Rolle). Eine Signatur der Werte oder OBO wäre die nächste Stufe, wenn die API je nutzerbezogen entscheiden soll.
+
+**Live-Nachweis 2026-10-17:** Nach `tools/call get_service_health_overview` über das Gateway steht im API-Container-Log: `MCP caller authMethod=entra oid=d085818d-… tid=db88f9b6-… upn=… GET /api/m365/status/health-overviews`. Damit ist belegt, dass `IHttpContextAccessor` im deployten, zustandslosen MCP-Transport befüllt ist und der Kontext aus dem validierten Token bei der API ankommt. Nicht live getestet: der API-Key-Pfad (`authMethod=apikey`; in Azure ist kein Key gesetzt).

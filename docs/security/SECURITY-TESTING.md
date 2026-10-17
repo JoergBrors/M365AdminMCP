@@ -18,5 +18,16 @@ SAST (z. B. CodeQL), IaC-Scanner, SBOM-Erzeugung, DAST gegen eine Testinstanz. N
 ## Manuell / Live (nicht in CI)
 `src/OAuthGateway/tools/gateway_e2e.py`: echter OAuth-Durchlauf (Browser-Login) gegen das Dev-Gateway, `tools/list` und `tools/call` bis Graph. MCP-Inspector-Konfiguration: [ADR-0015](../adr/0015-lokales-debugging-mit-inspector.md).
 
+## Live-Nachweise (manuell, 2026-10-17)
+| Prüfung | Ergebnis |
+|---|---|
+| `tools/list` über das Gateway | 17 Tools |
+| `tools/call get_service_health_overview` (Entra-Login im Browser) | Graph-Daten, unter Policy `DataAccess` und Zuweisungspflicht |
+| Rate Limit Gateway `/register` (Burst 13) | 10× `201`, danach `429`; `/healthz` und Discovery unberührt |
+| McpServer HSTS | `Strict-Transport-Security: max-age=2592000` |
+| Maskierung im Zugriffsprotokoll | kein unmaskierter `code=` im Container-Log |
+| UserContext | API-Log: `MCP caller authMethod=entra oid=… tid=… upn=…` |
+| Nicht getestet | Nicht zugewiesener Nutzer gegen die API (F-016, kein Testnutzer), API-Key-Pfad, Last, echte Clients außer FastMCP-Client |
+
 ## Lücken
 Kein Testprojekt für den McpServer; keine Autorisierungstests auf Tool-Ebene; keine Tests für Rate Limiting/Limits (nicht implementiert); keine echten Client-Tests (Claude, ChatGPT, Copilot Studio, Foundry).
