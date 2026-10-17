@@ -10,6 +10,7 @@ from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 from starlette.responses import JSONResponse
 
 from .config import GatewayConfig, load_config
+from .issuer import issuer_without_trailing_slash
 from .server import build_proxy
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -67,7 +68,7 @@ def create_app(cfg: GatewayConfig | None = None):
 
     log.info("gateway configured: public=%s backend_host=%s storage=%s", cfg.public_url, cfg.backend_host,
              "azure-tables" if cfg.storage_account else "memory")
-    return mcp.http_app(path="/mcp")
+    return issuer_without_trailing_slash(mcp.http_app(path="/mcp"))
 
 
 def _lazy():
