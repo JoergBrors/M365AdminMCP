@@ -424,7 +424,7 @@ public class GraphApiClient
                 }
                 if (!string.IsNullOrWhiteSpace(date))
                 {
-                    path = $"/reports/{def.FunctionName}(date={date})";
+                    path = $"/reports/{def.FunctionName}(date={ReportParameterValidator.ValidateDate(date)})";
                 }
                 else
                 {
@@ -445,8 +445,8 @@ public class GraphApiClient
             case ReportParamMode.Special when def.FunctionName == "getApiUsage":
                 var parts = new List<string>();
                 if (!string.IsNullOrWhiteSpace(period)) parts.Add($"period='{ValidatePeriod(period, def)}'");
-                if (!string.IsNullOrWhiteSpace(serviceArea)) parts.Add($"serviceArea='{serviceArea}'");
-                if (!string.IsNullOrWhiteSpace(appId)) parts.Add($"appId='{appId}'");
+                if (!string.IsNullOrWhiteSpace(serviceArea)) parts.Add($"serviceArea='{ReportParameterValidator.ValidateServiceArea(serviceArea)}'");
+                if (!string.IsNullOrWhiteSpace(appId)) parts.Add($"appId='{ReportParameterValidator.ValidateAppId(appId)}'");
                 path = parts.Count > 0 ? $"/reports/{def.FunctionName}({string.Join(",", parts)})" : $"/reports/{def.FunctionName}";
                 break;
 

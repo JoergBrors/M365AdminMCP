@@ -1,0 +1,31 @@
+# ADR-Implementierungsaudit
+
+Stand 2026-10-17, Branch `feature/security-hardening-docs`. Geprüft wurde, ob der Code die in den ADRs beschriebene Entscheidung tatsächlich umsetzt.
+Statuswerte: `IMPLEMENTED`, `PARTIALLY_IMPLEMENTED`, `NOT_IMPLEMENTED`, `DEVIATION`, `OBSOLETE`, `NOT_VERIFIABLE`.
+Nachweis „geprüft“ = Code gelesen oder per `grep` belegt in diesem Lauf. Tests: `dotnet test EntraMcpMvp.sln` → 144 bestanden (nur ApiServer-Tests; für den McpServer gibt es kein Testprojekt).
+
+| ADR | Entscheidung | Code-Nachweis | Test-Nachweis | Status | Sicherheitsrisiko | Maßnahme |
+|---|---|---|---|---|---|---|
+| 0001 | Terraform einziger Deployment-Weg | `terraform/`, `.github/workflows/deploy.yml`, `scripts/Invoke-Terraform*.ps1`; Legacy `infra/` und `Set-EntraIdApps.ps1` vorhanden, nicht verdrahtet | Plan in CI (PRs #8–#24) | IMPLEMENTED (mit dokumentierten Ausnahmen) | gering | Ausnahmen: Foundry-Self-Service-App ([FOUNDRY-OAUTH.md](../FOUNDRY-OAUTH.md)), manuelle `az`-Diagnoseeinstellungen am Gateway (inzwischen in Terraform), Löschen der Alt-Redirect-URI durch den Eigentümer |
+| 0002 | MCP ohne Graph-Rechte, ApiServer kapselt Graph | `grep` nach `graph.microsoft.com`/`GraphServiceClient` in `src/McpServer`: **keine Treffer** | – | IMPLEMENTED | gering | `AGENTS.md` behauptete „ruft … direkt Graph auf“ → falsch, korrigiert |
+| 0003 | `/mcp`, Streamable HTTP, stateless | `McpServer/Program.cs:98-106,171` (`WithHttpTransport`, kein `/sse`) | Live: `initialize`/`tools/list`/`tools/call` über das Gateway | IMPLEMENTED | gering | – |
+| 0004 | Dünne OAuth-Fassade im McpServer | `McpServer/Auth/OAuthProxy.cs` | keine Unit-Tests (kein McpServer-Testprojekt) | IMPLEMENTED | mittel: Fassade und Python-Gateway (ADR-0017) duplizieren Zuständigkeit; `token_endpoint_auth_methods_supported=["none"]` ungenau | Gateway bleibt Opt-in; eine einzige Regelquelle je Client festlegen (OPEN-QUESTIONS Q-ARCH-1) |
+| 0005 | Vorregistrierte OAuth-Clients per Terraform | `terraform/modules/entra-id/main.tf` (`mcp_oauth_client`, `copilot_mcp_oauth_client`) | Plan zeigte Abweichung: manuell ergänzte Redirect-URI (Grok) an der ChatGPT-App – vom Eigentümer entfernt | IMPLEMENTED | gering | Drift-Erkennung über den PR-Plan ist wirksam |
+| 0006 | App-only Standard, OBO optional | `ApiTokenService.cs:51-82`; `PolicyNames.TasksReadWrite` an **allen 5** Controllern (`grep Authorize(`) | – | **DEVIATION / PARTIALLY** | **hoch (Design)**: keine nutzerbezogene Autorisierung; OBO in Produktion nicht möglich, da `UseManagedIdentity=true` (`ApiTokenService.cs:75-78`, `infra/main.tf:188`); `GetTasksDelegated` nimmt ein Token als LLM-Parameter | Siehe SECURITY-FINDINGS F-004/F-005/F-006, Migrationsvorschlag in [SECURITY-DECISIONS.md](../security/SECURITY-DECISIONS.md) |
+| 0007 | Managed Identity, Key Vault, keine Klartext-Secrets | `terraform/modules/infra/main.tf` (KV-Referenzen, MI-Rollen) | Plan/Apply | IMPLEMENTED | mittel: Secrets liegen im Terraform-State | State-Zugriff schützen (TERRAFORM-SECURITY) |
+| 0008 | Datengetriebener Report-Katalog | `McpServer/Reporting/ReportCatalog.cs`, `GraphApiClient.GetCatalogReportAsJsonAsync` | `ReportCatalogTests`, `GraphApiClientReportTests` | **IMPLEMENTED (Validierungslücke jetzt geschlossen)** | war **hoch**: `date`/`serviceArea`/`appId` ungeprüft im Graph-Pfad | Behoben: `ReportParameterValidator` + 21 Tests; ADR-Text „Bekannte Lücke“ ist überholt |
+| 0009 | Compile-Links statt Bibliothek | `ApiServer.csproj:20-22` (3 Links auf `McpServer`) | Build | IMPLEMENTED (akzeptierte Schuld) | gering | spätere Extraktion in `Shared` (ROADMAP Phase 3) |
+| 0010 | Reports beta, JSON/CSV | `GraphApiClient.GetReportAsJsonAsync`, Retries | `GraphApiClientReportTests` | PARTIALLY_IMPLEMENTED | mittel: kein `@odata.nextLink`-Paging im Report-Pfad (`grep nextLink` ohne Treffer), keine Antwortgrößenbegrenzung | Größenlimit und Paging als Q-API-2 offen |
+| 0011 | Service-Health-Fallback | `GraphApiClient.GetServiceHealthDetailFallbackAsync` (Zeile ~146) | keine gezielten Tests gefunden (`grep` in `tests/` nur Health-Clients) | IMPLEMENTED / Test NOT_VERIFIABLE | gering | Tests ergänzen |
+| 0012 | CI/CD mit OIDC, Plan/Apply-Schutz | `.github/workflows/deploy.yml`, `Invoke-TerraformApply.ps1` | live beobachtet: geplante Löschung brach den Apply ab (Sicherheitsnetz wirkt) | IMPLEMENTED | gering | erweitert um `gateway-ci`, NuGet-Audit |
+| 0013 | Free-Tier F1 | `variables.tf` Default F1; **Gateway-Plan: B1** (`terraform.dev.tfvars: gateway_sku`) | Live: F1-Quota des Gateways erschöpft | **DEVIATION (bewusst, nur Gateway)** | Verfügbarkeit | Bestehende Apps bleiben F1; Entscheidung des Eigentümers dokumentiert in [FASTMCP-GATEWAY-COSTS.md](../FASTMCP-GATEWAY-COSTS.md) |
+| 0014 | Statischer `X-MCP-API-Key` | `McpServer/Program.cs:145-170` | – | **PARTIALLY → verbessert** | mittel: war nicht zeitkonstant; jetzt `CryptographicOperations.FixedTimeEquals` (Längen-Leak bleibt); in Azure **nicht gesetzt** (kein `McpAuth__ApiKey` in `terraform/`) → Weg deaktiviert | Empfehlung: abschaffen oder pro Client scopen (Q-SEC-3) |
+| 0015 | Lokale Auth-Deaktivierung nur Dev+Loopback | `McpServer/Program.cs:36-41,110-138` | manuell/ADR | IMPLEMENTED | gering | – |
+| 0016 | Microsoft Health (Intune/Azure) | `src/ApiServer/Health/`, `MicrosoftHealthTools`, Terraform `azure_health_subscription_ids` | 4 Test-Dateien in `tests/ApiServer.Tests/Health/` | IMPLEMENTED | gering | Azure-RBAC für Dev per PR #7 aktiv |
+| 0017 | FastMCP-OAuth-Gateway | `src/OAuthGateway/`, `terraform/modules/gateway/` | 51 Python-Tests (Mock-IdP) + Live-Test `tools/gateway_e2e.py` | **PARTIALLY_IMPLEMENTED** (Status im ADR: „Vorgeschlagen“) | mittel: ChatGPT-Anmeldung scheitert (Client-Prüfung), Claude ungetestet, Backend öffentlich | Gates G1/G2 erfüllt, G3–G7 offen ([FASTMCP-GATEWAY-TESTS.md](../FASTMCP-GATEWAY-TESTS.md)) |
+
+## Zusammenfassung
+- Vollständig umgesetzt: 0001 (mit Ausnahmen), 0002, 0003, 0004, 0005, 0007, 0008, 0009, 0011\*, 0012, 0015, 0016.
+- Teilweise/abweichend: 0006, 0010, 0013, 0014, 0017.
+- Offen und nicht still entschieden: Autorisierungsmodell (0006), Rolle der OAuth-Fassade gegenüber dem Gateway (0004/0017), API-Key (0014).
+- \* Tests nicht verifiziert.

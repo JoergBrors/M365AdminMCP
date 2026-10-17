@@ -21,6 +21,10 @@ jobs:
           dotnet-version: '10.0.x'
       - run: dotnet build EntraMcpMvp.sln
       - run: dotnet test EntraMcpMvp.sln --no-build
+      - name: NuGet-Schwachstellenpruefung (inkl. transitive Pakete)
+        run: |
+          dotnet list EntraMcpMvp.sln package --vulnerable --include-transitive 2>&1 | tee nuget-audit.txt
+          if grep -qi "has the following vulnerable packages" nuget-audit.txt; then echo "Anfaellige NuGet-Pakete gefunden"; exit 1; fi
 
   gateway-ci:
     runs-on: ubuntu-latest

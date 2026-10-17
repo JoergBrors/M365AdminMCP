@@ -5,6 +5,8 @@ using McpServer.Services;
 using McpServer.Tools;
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -149,7 +151,9 @@ if (requireMcpAuthentication)
         {
             var configuredApiKey = app.Configuration["McpAuth:ApiKey"];
             if (!string.IsNullOrWhiteSpace(configuredApiKey) &&
-                string.Equals(apiKeyHeader.ToString(), configuredApiKey, StringComparison.Ordinal))
+                CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(apiKeyHeader.ToString()),
+                    Encoding.UTF8.GetBytes(configuredApiKey)))
             {
                 var claims = new[]
                 {

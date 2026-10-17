@@ -2,11 +2,47 @@
 
 Produktiv deploybares Repo für:
 - **API Server** (ASP.NET Core, .NET 10 LTS) – geschützt via Entra ID, unterstützt **App-only** (Client Credentials) **und** **Delegated** (Auth Code / On-Behalf-Of) Tokens
-- **MCP Server** (ASP.NET Core, .NET 10 LTS + `ModelContextProtocol.AspNetCore` v2, Streamable HTTP, stateless) – ruft den API Server sowohl app-only als auch im Namen eines angemeldeten Nutzers auf, und liest zusätzlich tenant-weit **Office 365 Status** (Service Health), **Message Center** (Nachrichten) und **Adoption/Usage Reports** (92 Endpunkte) direkt über Microsoft Graph. Vorregistrierte OAuth-Clients für **ChatGPT**, **Claude** und **Copilot Studio** (siehe [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), Abschnitt "MCP OAuth Clients")
+- **MCP Server** (ASP.NET Core, .NET 10 LTS + `ModelContextProtocol.AspNetCore` v2, Streamable HTTP, stateless) – ruft den API Server sowohl app-only als auch im Namen eines angemeldeten Nutzers auf, und liefert zusätzlich tenant-weit **Office 365 Status** (Service Health), **Message Center** (Nachrichten), **Adoption/Usage Reports** (92 Endpunkte) sowie **Intune-/Azure-Health** – der McpServer selbst hat keine Graph-Rechte, alle Graph-/ARM-Aufrufe laufen über den API Server (ADR-0002). Vorregistrierte OAuth-Clients für **ChatGPT**, **Claude** und **Copilot Studio** (siehe [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), Abschnitt "MCP OAuth Clients")
 - **Infrastruktur als Code** – **Terraform** (`terraform/`, einziger aktiv gepflegter und über CI/CD verdrahteter Weg) für Azure App Service, Key Vault, Log Analytics/App Insights **und** alle Entra-ID-Objekte im selben State
 - **CI/CD** – GitHub Actions (`.github/workflows/deploy.yml`), OIDC-Login (Workload Identity Federation, kein langlebiges Client-Secret für die Pipeline selbst), `main` ist geschützt (nur per Pull Request, siehe unten)
 
 > Ein älterer, paralleler Bicep-Weg (`infra/`, `scripts/Set-EntraIdApps.ps1`, `scripts/Invoke-BicepWhatIf.ps1`, `scripts/Invoke-BicepDeploy.ps1`, `scripts/Get-EntraIdDiff.ps1`) existiert noch im Repo, ist aber **Legacy und nicht mehr aktiv gepflegt** – er läuft nicht im CI-Workflow. Siehe [Legacy: Bicep-Weg](#legacy-bicep-weg-nicht-aktiv-gepflegt) unten. Für alles Neue **immer Terraform verwenden**.
+
+## Neueste Erweiterungen und Architekturänderungen
+
+Stand 2026-10-17. Nur was tatsächlich umgesetzt und geprüft ist; Offenes steht ausdrücklich dabei.
+
+- **Python-OAuth-Gateway (FastMCP 4.1.0)** in `src/OAuthGateway/`, in Dev auf einem eigenen B1-Plan (`entramcp-dev-oauth-gateway`). Es übernimmt Discovery, Dynamic Client Registration, CIMD und Consent für MCP-Clients, meldet Nutzer über eine zentrale Entra-App an und reicht das Entra-Token an den unveränderten .NET-Server weiter. **Nachgewiesen:** Entra-Login, `tools/list` (18 Tools) und ein echter `tools/call` bis Microsoft Graph. **Offen:** Die ChatGPT-Anmeldung scheitert an der Client-Prüfung (Q-GW-1); Claude, Copilot Studio, Refresh und Re-Deploy sind nicht vollständig getestet. Details: [`docs/FASTMCP-GATEWAY-ARCHITECTURE.md`](docs/FASTMCP-GATEWAY-ARCHITECTURE.md), [`docs/FASTMCP-GATEWAY-TESTS.md`](docs/FASTMCP-GATEWAY-TESTS.md), [ADR-0017](docs/adr/0017-fastmcp-oauth-gateway.md) (Status: vorgeschlagen). Die .NET-OAuth-Fassade bleibt als Rollback aktiv ([`docs/FASTMCP-GATEWAY-ROLLBACK.md`](docs/FASTMCP-GATEWAY-ROLLBACK.md)).
+- **Microsoft Foundry:** Self-Service-Anbindung per Skript `scripts/New-FoundryMcpClient.ps1` und Feld-für-Feld-Anleitung: [`docs/FOUNDRY-OAUTH.md`](docs/FOUNDRY-OAUTH.md) (nicht gegen ein echtes Foundry-Projekt getestet).
+- **Sicherheits-Härtung:** Parametervalidierung für Report-Aufrufe (`date`, `appId`, `serviceArea`), zeitkonstanter API-Key-Vergleich, Patch einer verwundbaren NuGet-Abhängigkeit, NuGet-Audit in CI. Findings, Entscheidungen und offene Punkte: [`docs/security/`](docs/security/README.md), [`docs/adr/IMPLEMENTATION-AUDIT.md`](docs/adr/IMPLEMENTATION-AUDIT.md).
+- **CI:** zusätzlicher Job `gateway-ci` (Lint, 51 Python-Tests, pip-audit, Gitleaks, Paketbau mit Import-Prüfung), `terraform fmt/validate`, NuGet-Schwachstellenprüfung, Gateway-Deploy mit Smoke-Test über den vorhandenen OIDC-Login.
+- **Wiederverwendung und Planung:** [`docs/EXTENDING-MCP-PLATFORM.md`](docs/EXTENDING-MCP-PLATFORM.md), [`docs/REUSING-MCP-BASE.md`](docs/REUSING-MCP-BASE.md), [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md).
+
+## Architekturüberblick
+
+```mermaid
+flowchart LR
+  C[ChatGPT / Claude / Copilot Studio / Foundry] -->|OAuth, MCP| G[Python-OAuth-Gateway]
+  C -->|OAuth über Fassade / Entra| M
+  G -->|Entra-Token| M[McpServer .NET /mcp]
+  G --> E[Entra ID]
+  M -->|Managed Identity| A[ApiServer .NET]
+  A -->|Managed Identity| X[Microsoft Graph / Azure ARM]
+```
+
+| Dienst | Verantwortung |
+|---|---|
+| `src/OAuthGateway` | OAuth-Discovery, DCR/CIMD, Consent, Token-Austausch; keine Graph-/ARM-/API-Rechte |
+| `src/McpServer` | MCP-Endpunkt `/mcp`, 18 Tools (nur lesend), OAuth-Fassade (ADR-0004) |
+| `src/ApiServer` | geschützte API, hält alle Graph-/ARM-Rechte (Managed Identity) |
+
+**Tool-Gruppen (18, live per `tools/list` bestätigt):** Tasks (Demo, app-only/delegated), Service Health (Overview, Detail, Issues, degradierte Services), Message Center, Adoption-/Usage-Reports (Katalog mit 92 Reports über `list_adoption_reports`/`get_adoption_report`, zwei Detail-Kurzbefehle), Intune-/Microsoft-Health und Azure Service/Resource Health.
+
+**Sicherheit:** siehe [`docs/security/`](docs/security/README.md). Wichtigste offene Punkte: keine nutzerbezogene Autorisierung (alle `Mcp.Access`-Nutzer sehen tenantweite Daten, F-004), keine Rate Limits (F-009), Dienste öffentlich erreichbar (F-008).
+
+**Tests:** `dotnet test EntraMcpMvp.sln` (144 Tests, nur ApiServer), `cd src/OAuthGateway && pytest tests` (51 Tests, Mock-IdP), Live-Test `src/OAuthGateway/tools/gateway_e2e.py`. Bekannte Lücken: kein Testprojekt für den McpServer; keine echten Client-Tests außer dem FastMCP-Client.
+
+**Bekannte Einschränkungen:** Free-Tier-Kaltstart (F1) und Gateway-Containerstart von 2–3 Minuten (B1); ChatGPT-Anmeldung über das Gateway nicht funktionsfähig; MCP-Protokollstand `2025-11-25` (neuere Spezifikationen nicht nachgewiesen).
 
 ## Ordnerstruktur
 
@@ -17,6 +53,7 @@ M365AdminMCP/
 │   │   ├── Auth/          # GraphTokenService, GraphAuthOptions, PolicyNames
 │   │   ├── Controllers/   # TasksController, M365StatusController, M365MessagesController, M365ReportsController
 │   │   └── Services/      # GraphApiClient (Microsoft-Graph-Zugriff, CSV->JSON-Fallback)
+│   ├── OAuthGateway/     # Python-FastMCP-OAuth-Gateway (gateway/, tests/, tools/)
 │   └── McpServer/        # MCP Server (Streamable HTTP, stateless)
 │       ├── Auth/          # ApiTokenService (OBO), McpAuthOptions, OAuthProxy (RFC-8707-Fassade vor Entra)
 │       ├── Tools/          # TasksTool, M365StatusTool, M365MessagesTool, M365AdoptionTool, M365AdoptionCatalogTool
@@ -28,7 +65,8 @@ M365AdminMCP/
 │   ├── terraform.dev.tfvars
 │   └── modules/
 │       ├── entra-id/     # azuread_application, App Roles, Graph-Permissions, OAuth-Clients, Admin Consent
-│       └── infra/        # azurerm: Resource Group, App Service Plan, 2 Linux Web Apps, Key Vault, Monitoring, RBAC
+│       ├── infra/        # azurerm: Resource Group, App Service Plan, 2 Linux Web Apps, Key Vault, Monitoring, RBAC
+│       └── gateway/      # optional (enable_gateway): eigener Plan, Python-Web-App, Storage, Key-Vault-Secrets
 ├── infra/                # LEGACY: Bicep-Alternative, nicht im CI verdrahtet (siehe unten)
 ├── scripts/                                          # PowerShell 7 (.ps1) - macOS/Windows/Linux
 │   ├── Connect-Azure.ps1                             # liest .env, az login/account set auf Tenant+Subscription
@@ -145,7 +183,12 @@ Dieser Weg existiert noch als Referenz/Ideengeber (u. a. für die Microsoft-Grap
 ## Entwickler-Dokumentation
 
 - [`docs/CODE-REFERENCE.md`](docs/CODE-REFERENCE.md) – Code-Segmente im Detail
-- [`docs/adr/`](docs/adr/README.md) – Architecture Decision Records (15 Entscheidungen)
+- [`docs/adr/`](docs/adr/README.md) – Architecture Decision Records (17 Einträge), [Implementierungsaudit](docs/adr/IMPLEMENTATION-AUDIT.md)
+- [`docs/security/`](docs/security/README.md) – Sicherheitsarchitektur, Threat Model, Findings, Pentest-/Audit-Vorbereitung
+- [`docs/FASTMCP-GATEWAY-ARCHITECTURE.md`](docs/FASTMCP-GATEWAY-ARCHITECTURE.md) und weitere `docs/FASTMCP-GATEWAY-*.md` – Gateway
+- [`docs/FOUNDRY-OAUTH.md`](docs/FOUNDRY-OAUTH.md) – Microsoft-Foundry-Anbindung
+- [`docs/EXTENDING-MCP-PLATFORM.md`](docs/EXTENDING-MCP-PLATFORM.md), [`docs/REUSING-MCP-BASE.md`](docs/REUSING-MCP-BASE.md) – Plattform erweitern
+- [`docs/ROADMAP.md`](docs/ROADMAP.md), [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md)
 - [`docs/DESIGN-DECISION-MAP.md`](docs/DESIGN-DECISION-MAP.md) – Entscheidung → Code-Fundstelle
 - [`docs/DEPLOYMENT-RUNBOOK.md`](docs/DEPLOYMENT-RUNBOOK.md) – exakter Deployment-Ablauf
 - [`docs/DEBUGGING.md`](docs/DEBUGGING.md) – lokales Debugging, Inspector, Fehlerbilder
