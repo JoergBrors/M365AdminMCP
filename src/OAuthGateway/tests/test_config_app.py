@@ -88,3 +88,15 @@ def test_backend_client_is_pinned_to_handshake_era():
     """Regression: .NET backend rejects modern per-request metadata (live tools/call failure)."""
     from gateway.server import make_backend_client
     assert make_backend_client("https://backend.example.net/mcp").mode == "legacy"
+
+
+def test_azure_tables_keys_allow_cimd_url_client_ids():
+    """Regression: Claude/ChatGPT send a URL as client_id (CIMD); Azure Tables rejects '/' in RowKey -> HTTP 500."""
+    from gateway.app import build_storage
+    cfg = load_config({**GOOD, "GATEWAY_STORAGE_ACCOUNT": "acct", "GATEWAY_ALLOW_MEMORY_STORAGE": "false"})
+    store = build_storage(cfg).key_value
+    url = "https://claude.ai/oauth/mcp-oauth-client-metadata"
+    safe = store._key_sanitization_strategy.sanitize(url)
+    assert "/" not in safe and safe.startswith("H_")
+    uuid_key = "75dcc81d-5cf4-406e-98c1-0a986b4c04ee"       # DCR ids stay as they are (existing registrations survive)
+    assert store._key_sanitization_strategy.sanitize(uuid_key) == uuid_key
