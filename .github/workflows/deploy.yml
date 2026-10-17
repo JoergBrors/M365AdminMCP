@@ -51,6 +51,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Secret-freies Deployment-Artefakt bauen
         run: bash ./build_artifact.sh dist/gateway.zip "${GITHUB_SHA}"
+      - name: Artefakt in leerer Umgebung importieren (fehlende Module/Pakete)
+        run: |
+          rm -rf /tmp/art /tmp/artvenv && mkdir /tmp/art && unzip -q dist/gateway.zip -d /tmp/art
+          python -m venv /tmp/artvenv
+          PYTHONPATH=/tmp/art:/tmp/art/.python_packages/lib/site-packages /tmp/artvenv/bin/python -c "import gateway.app, gateway.issuer, gateway.config, gateway.server; print('artifact imports ok')"
       - uses: actions/upload-artifact@v4
         with:
           name: oauth-gateway-${{ github.sha }}

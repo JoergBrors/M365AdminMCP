@@ -5,7 +5,7 @@ set -euo pipefail
 OUT="${1:-dist/gateway.zip}"; VERSION="${2:-local}"
 STAGE="$(mktemp -d)"
 mkdir -p "$STAGE/gateway" "$STAGE/.python_packages/lib/site-packages"
-cp gateway/__init__.py gateway/app.py gateway/config.py gateway/server.py "$STAGE/gateway/"
+cp gateway/*.py "$STAGE/gateway/"   # only the application package (*.py); tests, tools, dist stay out
 cp requirements.txt "$STAGE/"
 echo "$VERSION" > "$STAGE/VERSION"
 grep -v 'sys_platform == "win32"' requirements.txt > "$STAGE/req.linux.txt"
