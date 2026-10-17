@@ -37,7 +37,7 @@ class _ErrorLogging(Middleware):
     async def on_message(self, context, call_next):
         try:
             return await call_next(context)
-        except Exception as exc:  # noqa: BLE001 - log and re-raise unchanged
+        except Exception as exc:
             chain, e = [], exc
             while e is not None and len(chain) < 6:
                 status = getattr(getattr(e, "response", None), "status_code", None)
