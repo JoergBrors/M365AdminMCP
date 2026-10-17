@@ -40,6 +40,40 @@ def serve(app, port) -> uvicorn.Server:
     raise RuntimeError("server did not start")
 
 
+
+def recorder(app, seen: list):
+    """ASGI wrapper that records (method, sorted _meta keys) of every JSON-RPC POST the backend receives."""
+    import json
+
+    async def wrapper(scope, receive, send):
+        if scope["type"] != "http" or scope["method"] != "POST":
+            return await app(scope, receive, send)
+        body, more = b"", True
+        while more:
+            message = await receive()
+            body += message.get("body", b"")
+            more = message.get("more_body", False)
+        try:
+            doc = json.loads(body)
+            for item in doc if isinstance(doc, list) else [doc]:
+                meta = (item.get("params") or {}).get("_meta") or {}
+                seen.append((item.get("method"), sorted(meta)))
+        except ValueError:
+            pass
+        sent = False
+
+        async def replay():
+            nonlocal sent
+            if not sent:
+                sent = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+
+        await app(scope, replay, send)
+
+    return wrapper
+
+
 class MockEntra:
     def __init__(self):
         self.port = free_port()
@@ -113,7 +147,8 @@ class Backend:
             await asyncio.sleep(30)
             return "done"
 
-        self.server = serve(mcp.http_app(path="/mcp", stateless_http=True), self.port)
+        self.seen: list = []
+        self.server = serve(recorder(mcp.http_app(path="/mcp", stateless_http=True), self.seen), self.port)
 
 
 class Gateway:

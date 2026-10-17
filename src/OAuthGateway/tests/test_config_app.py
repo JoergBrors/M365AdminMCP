@@ -171,12 +171,15 @@ def test_redirects_are_logged_by_the_wrapper(caplog):
 
 
 def test_access_log_masks_oauth_codes_state_and_tokens():
+    """Uses uvicorn's real AccessFormatter: the earlier filter destroyed record.args and every access line raised a logging error."""
     import logging
 
+    from uvicorn.logging import AccessFormatter
+
     from gateway.app import MaskSensitiveQuery
-    rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0,
-                            '%s - "%s %s HTTP/%s" %d',
+    rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d',
                             ("1.2.3.4:5", "GET", "/auth/callback?code=SECRETCODE&state=SECRETSTATE&x=keep", "1.1", 302), None)
     assert MaskSensitiveQuery().filter(rec)
-    out = rec.getMessage()
+    out = AccessFormatter("%(client_addr)s - \"%(request_line)s\" %(status_code)s", use_colors=False).format(rec)
     assert "SECRETCODE" not in out and "SECRETSTATE" not in out and "x=keep" in out and "code=***" in out
+    assert "302" in out

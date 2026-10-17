@@ -53,6 +53,37 @@ class _ErrorLogging(Middleware):
             raise
 
 
+_RESERVED_META_PREFIX = "io.modelcontextprotocol/"
+
+
+def _install_reserved_meta_filter() -> None:
+    """Do not forward protocol-reserved `_meta` keys (`io.modelcontextprotocol/*`, e.g. logLevel) to the backend.
+
+    FastMCP's proxy forwards the frontend request's `_meta` except three connection keys, so a modern client's per-request
+    `io.modelcontextprotocol/logLevel` reaches the backend. The .NET MCP server (handshake era, protocol 2025-11-25) rejects it:
+    "The reserved per-request metadata key ... is not valid with protocol version '2025-11-25'" (live failure on tools/call).
+    Other keys (progressToken, tracing) still pass. Guarded by tests/test_mcp_e2e.py::test_reserved_meta_is_not_forwarded_to_backend.
+    """
+    from fastmcp.server.providers import proxy as fastmcp_proxy
+
+    original = fastmcp_proxy._forwardable_request_meta
+    if getattr(original, "_reserved_filter", False):
+        return
+
+    def filtered(ctx):
+        meta = original(ctx)
+        if not meta:
+            return meta
+        kept = {k: v for k, v in meta.items() if not str(k).startswith(_RESERVED_META_PREFIX)}
+        return kept or None
+
+    filtered._reserved_filter = True
+    fastmcp_proxy._forwardable_request_meta = filtered
+
+
+_install_reserved_meta_filter()
+
+
 def make_backend_client(backend_mcp_url: str) -> ProxyClient:
     transport = StreamableHttpTransport(backend_mcp_url, auth=_UpstreamBearer())
     # The .NET MCP server (ModelContextProtocol.AspNetCore, protocol 2025-11-25) speaks the handshake era only.
