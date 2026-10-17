@@ -7,7 +7,7 @@ Stand 2026-10-17. **Nicht mit einem echten Foundry-Projekt getestet** – die Fe
 **Foundry spricht direkt mit Entra und dem .NET-MCP-Server, nicht mit dem FastMCP-Gateway.** Die App dafür legt der Anwender selbst per Skript an ([`scripts/New-FoundryMcpClient.ps1`](../scripts/New-FoundryMcpClient.ps1)); sie wird bewusst **nicht** über Terraform verwaltet.
 
 Begründung:
-- Foundry („Custom MCP“ → „OAuth Identity Passthrough“) kennt weder DCR noch CIMD. Es verlangt eine vorab angelegte Entra-App mit Client-ID, Client-Secret (laut Doku „optional, abhängig von der OAuth-App“), Auth-, Token- und Refresh-URL und Scopes ([Doku](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication#oauth-identity-passthrough)).
+- Foundry („Custom MCP“ → „OAuth Identity Passthrough“) kennt weder DCR noch CIMD. Es verlangt eine vorab angelegte Entra-App mit Client-ID, Client-Secret (laut Doku „optional, abhängig von der OAuth-App“; **in der deutschen Oberfläche ist der „Geheime Clientschlüssel“ ein Pflichtfeld**), Auth-, Token- und Refresh-URL und Scopes ([Doku](https://learn.microsoft.com/azure/foundry/agents/how-to/mcp-authentication#oauth-identity-passthrough)).
 - FastMCP 4.1.0 kann **keinen Confidential Client mit eigenem Secret** registrieren: `register_client` speichert jeden Client als public (`token_endpoint_auth_method="none"`, `client_secret=None`; Code `fastmcp/server/auth/oauth_proxy/proxy.py`, bestätigt durch den Live-Test: DCR liefert `client_secret: None`). Das Secret der Gateway-Upstream-App darf nie an einen Downstream-Client gehen.
 - Foundry trägt Auth-/Token-URL von Entra selbst ein und schickt das Entra-Access-Token (Audience = MCP-App) an den MCP-Endpunkt. Genau das validiert der .NET-Server unverändert. Das Gateway würde stattdessen ein FastMCP-JWT erwarten und das Entra-Token ablehnen.
 - Die bestehende .NET-OAuth-Fassade und die Copilot-Studio-App bleiben unberührt.
@@ -34,20 +34,20 @@ Nichts Bestehendes wird verändert oder gelöscht. Trockenlauf ohne Änderungen:
 4. Zurück in Foundry: **Close → Save**. Beim ersten Tool-Aufruf liefert Foundry einen Consent-Link (`oauth_consent_request`); der Nutzer meldet sich an und stimmt zu. Der Consent gilt pro Tool-Verbindung und Projekt.
 
 ## Feld für Feld
-Werte für Dev; `<tenantId>` = Verzeichnis-(Mandanten-)ID, das Skript gibt alles fertig aus.
+Dialog „Model Context Protocol-Tools hinzufügen“ (deutsche Oberfläche, Stand Screenshot des Eigentümers). Werte für Dev; `<tenantId>` = Verzeichnis-(Mandanten-)ID, das Skript gibt alles fertig aus.
 
-| Foundry-Feld | Wert |
+| Foundry-Feld (deutsch) | Wert |
 |---|---|
-| Name | frei, eindeutig (z. B. `m365admin-mcp`) |
-| Remote MCP Server endpoint | `https://entramcp-dev-mcp.azurewebsites.net/mcp` (**.NET-Server**, nicht das Gateway) |
-| Authentication | `OAuth Identity Passthrough` |
-| Client ID | Ausgabe des Skripts (`appId` der Foundry-App) |
-| Client secret | Ausgabe des Skripts (einmalig sichtbar) |
-| Auth URL | `https://login.microsoftonline.com/<tenantId>/oauth2/v2.0/authorize` |
-| Token URL | `https://login.microsoftonline.com/<tenantId>/oauth2/v2.0/token` |
-| Refresh URL | `https://login.microsoftonline.com/<tenantId>/oauth2/v2.0/token` |
-| Scopes | `api://mcp-server-dev/Mcp.Access offline_access` (durch **ein** Leerzeichen getrennt) |
-| Redirect URL | wird von Foundry nach „Connect“ angezeigt → mit `-AppId … -RedirectUri …` eintragen |
+| Name * | frei, eindeutig (z. B. `M365Status`) |
+| Remote-MCP-Serverendpunkt * | `https://entramcp-dev-mcp.azurewebsites.net/mcp` – der **.NET-Server**. **Nicht** die Gateway-URL `…oauth-gateway…/mcp`: Foundry schickt ein Entra-Token, das das Gateway (erwartet FastMCP-JWT) ablehnt |
+| Authentifizierung * | `OAuth-Identitätspassthrough` |
+| Client-ID * | Ausgabe des Skripts (`appId` der Foundry-App) |
+| Geheimer Clientschlüssel * | Ausgabe des Skripts (einmalig sichtbar) |
+| Token-URL * | `https://login.microsoftonline.com/<tenantId>/oauth2/v2.0/token` |
+| Authentifizierungs-URL * | `https://login.microsoftonline.com/<tenantId>/oauth2/v2.0/authorize` |
+| URL aktualisieren | `https://login.microsoftonline.com/<tenantId>/oauth2/v2.0/token` |
+| Bereiche | `api://mcp-server-dev/Mcp.Access offline_access` – das Feld ist mit `offline_access` vorbelegt; **ersetzen/ergänzen**, durch **ein** Leerzeichen getrennt |
+| Redirect-URL | wird von Foundry nach „Verbinden“ angezeigt → mit `-AppId … -RedirectUri …` eintragen |
 
 ## Hinweise und Grenzen
 - Das Foundry-Projekt muss im selben Tenant liegen wie die MCP-App.
