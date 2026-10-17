@@ -150,6 +150,7 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseRequestHardening(); // vor UseAuthorization, damit auch 401-Anfragen limitiert werden
 app.UseAuthorization();
+app.UseUserContextAudit(); // nur Audit-Logging, keine Autorisierung
 
 app.MapControllers();
 

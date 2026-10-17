@@ -46,8 +46,11 @@ flowchart LR
 | MI Gateway | Key Vault Secrets User; Storage Table Data Contributor; **keine** Graph-/ARM-/API-Rechte |
 | CI-Principal `sp_keyvault` | Contributor auf `rg-entramcp-dev`, RBAC Administrator auf Subscription und Key Vault, Graph `Application.ReadWrite.All` (laut `AGENTS.md`, nicht erneut geprüft) |
 
+## Nutzeridentität (nur Audit)
+Der McpServer überträgt `oid`, `tid`, `preferred_username` und die Anmeldeart (`entra`, `apikey`) als Header an die API; Quelle ausschließlich das validierte Token, beide Seiten validieren strikt (`McpServer/Auth/UserContext.cs`). Die API schreibt sie in Log-Scope und Activity. **Keine Autorisierungswirkung.** UPN ist personenbezogen und über `Audit:LogUserPrincipalName=false` abschaltbar. Siehe ADR-0006.
+
 ## Berechtigungsmodell
-Zugriff auf alle Tools = Scope/Rolle `Mcp.Access`. Es gibt **keine** Rechte pro Datenbereich oder Nutzer (F-004/F-005). Die Daten sind tenantweit.
+Zugriff auf alle Tools = Scope/Rolle `Mcp.Access` (bewusst nur diese eine Berechtigung, D-1). Die API akzeptiert für Daten-Controller ausschließlich die App-Rolle `Tasks.ReadWrite.All` (Policy `DataAccess`) und hat Zuweisungspflicht. Es gibt keine Rechte pro Datenbereich oder Nutzer; die Daten sind tenantweit (F-004).
 
 ## Netzwerkgrenzen
 Alle Dienste sind über öffentliche `*.azurewebsites.net`-Hostnamen erreichbar; es gibt kein VNet, keinen Private Endpoint, keine IP-Restriktion (F-008).

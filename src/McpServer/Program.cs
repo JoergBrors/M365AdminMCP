@@ -21,6 +21,7 @@ if (builder.Environment.IsDevelopment())
 builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
 builder.Services.Configure<McpAuthOptions>(builder.Configuration.GetSection("McpAuth"));
 builder.Services.AddSingleton<ApiTokenService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ApiServerClient>();
 builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();

@@ -8,12 +8,15 @@ public class ApiServerClient
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ApiTokenService _tokenService;
     private readonly IConfiguration _configuration;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public ApiServerClient(
         IHttpClientFactory httpClientFactory,
         ApiTokenService tokenService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHttpContextAccessor httpContextAccessor)
     {
+        _httpContextAccessor = httpContextAccessor;
         _httpClientFactory = httpClientFactory;
         _tokenService = tokenService;
         _configuration = configuration;
@@ -41,6 +44,14 @@ public class ApiServerClient
         var client = _httpClientFactory.CreateClient();
         client.BaseAddress = new Uri(apiBaseUrl);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+        // Nutzeridentitaet NUR fuer Audit (nie fuer Autorisierung): aus dem bereits validierten Principal, nicht aus Client-Headern.
+        foreach (var (name, value) in UserContext.FromPrincipal(_httpContextAccessor.HttpContext?.User).ToHeaders())
+        {
+            client.DefaultRequestHeaders.Remove(name);
+            client.DefaultRequestHeaders.TryAddWithoutValidation(name, value);
+        }
+
         return client;
     }
 }
