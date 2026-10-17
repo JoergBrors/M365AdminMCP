@@ -99,3 +99,12 @@ async def test_backend_failure_is_logged_without_token(gw, caplog):
         with pytest.raises(ToolError):
             await c.call_tool("boom", {})
     assert tok["access_token"] not in caplog.text
+
+
+async def test_debug_flag_exposes_only_error_chain(gw, monkeypatch):
+    monkeypatch.setenv("GATEWAY_DEBUG_ERRORS", "true")
+    _, tok = get_token(gw)
+    async with Client(f"{gw.url}/mcp", auth=tok["access_token"]) as c:
+        with pytest.raises(ToolError) as e:
+            await c.call_tool("boom", {})
+    assert tok["access_token"] not in str(e.value)
