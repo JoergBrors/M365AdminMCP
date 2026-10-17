@@ -64,3 +64,11 @@ def test_app_health_endpoints_and_auth_required(caplog):
     assert meta["issuer"].rstrip("/") == "https://gw.example.net"      # public host, not localhost
     assert "registration_endpoint" in meta
     assert "s3cret-VALUE-for-tests" not in caplog.text
+
+
+def test_azure_tables_storage_path_imports_and_builds():
+    """Regression: production uses the Azure Tables store (needs aiohttp for the async azure clients);
+    earlier tests only used the memory store and missed the missing dependency."""
+    from gateway.app import build_storage
+    cfg = load_config({**GOOD, "GATEWAY_STORAGE_ACCOUNT": "acct", "GATEWAY_ALLOW_MEMORY_STORAGE": "false"})
+    assert build_storage(cfg) is not None
