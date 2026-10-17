@@ -50,12 +50,8 @@ resource "azuread_application_password" "gateway" {
   end_date_relative = "4380h"
 }
 
-resource "azuread_service_principal_delegated_permission_grant" "gateway_delegated_to_mcp" {
-  count                                = var.enable_gateway ? 1 : 0
-  service_principal_object_id          = azuread_service_principal.gateway[0].object_id
-  resource_service_principal_object_id = azuread_service_principal.mcp.object_id
-  claim_values                         = ["Mcp.Access", "offline_access"]
-}
+# Bewusst KEIN Admin-Consent-Grant: dem CI-Principal fehlt dafuer ein Graph-Recht (403 im Apply vom 2026-10-17) und
+# dieses Recht wird nicht erweitert. Der Nutzer stimmt Mcp.Access beim ersten Login selbst zu.
 
 output "gateway_client_id" {
   value = one(azuread_application.gateway[*].client_id)

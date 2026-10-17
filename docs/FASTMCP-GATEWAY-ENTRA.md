@@ -2,7 +2,7 @@
 
 ## Upstream-App `oauth-gateway-<env>` (`terraform/modules/entra-id/gateway.tf`)
 - Single-Tenant (`AzureADMyOrg`), Plattform `web{}` (Confidential Client), **eine** Redirect-URI `https://entramcp-dev-oauth-gateway.azurewebsites.net/auth/callback`.
-- Delegierte Berechtigung `Mcp.Access` auf die bestehende MCP-App; Admin-Consent-Grant `Mcp.Access` + `offline_access` (Muster des Copilot-Clients). `openid`/`profile` sind nicht Teil des Grants → normaler Nutzer-Consent (**nicht getestet**).
+- Delegierte Berechtigung `Mcp.Access` auf die bestehende MCP-App; KEIN Admin-Consent-Grant (CI-Principal hat dafür kein Recht; Nutzer-Consent beim ersten Login). `openid`/`profile` sind nicht Teil des Grants → normaler Nutzer-Consent (**nicht getestet**).
 - Keine Graph-Application-Permissions, keine Azure-Rollen, keine Rechte auf den ApiServer.
 - Bestehende App-Registrierungen (`mcp`, `api`, ChatGPT, Claude, Copilot) bleiben unverändert (siehe Plan in [FASTMCP-GATEWAY-TERRAFORM.md](FASTMCP-GATEWAY-TERRAFORM.md)).
 
