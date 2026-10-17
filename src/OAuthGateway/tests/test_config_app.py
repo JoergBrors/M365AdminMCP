@@ -137,3 +137,14 @@ def test_redirect_log_contains_iss_but_no_code_or_state(caplog):
     _log_redirect("/auth/callback", "https://chatgpt.com/cb?code=SECRETCODE&state=SECRETSTATE&iss=https%3A%2F%2Fgw.example.net")
     assert "iss='https://gw.example.net'" in caplog.text
     assert "SECRETCODE" not in caplog.text and "SECRETSTATE" not in caplog.text
+
+
+def test_iss_param_flag_is_advertised_by_default_and_can_be_switched_off(monkeypatch):
+    app = create_app(load_config(GOOD))
+    port = free_port()
+    serve(app, port)
+    url = f"http://127.0.0.1:{port}/.well-known/oauth-authorization-server"
+    monkeypatch.delenv("GATEWAY_ADVERTISE_ISS_PARAM", raising=False)
+    assert httpx.get(url).json()["authorization_response_iss_parameter_supported"] is True
+    monkeypatch.setenv("GATEWAY_ADVERTISE_ISS_PARAM", "false")
+    assert httpx.get(url).json()["authorization_response_iss_parameter_supported"] is False
