@@ -100,3 +100,30 @@ def test_azure_tables_keys_allow_cimd_url_client_ids():
     assert "/" not in safe and safe.startswith("H_")
     uuid_key = "75dcc81d-5cf4-406e-98c1-0a986b4c04ee"       # DCR ids stay as they are (existing registrations survive)
     assert store._key_sanitization_strategy.sanitize(uuid_key) == uuid_key
+
+
+def test_issuer_has_no_trailing_slash_everywhere():
+    """Regression: ChatGPT rejected the authorization response ('issuer does not match the expected issuer')."""
+    import urllib.parse as up
+
+    app = create_app(load_config(GOOD))
+    port = free_port()
+    serve(app, port)
+    base = f"http://127.0.0.1:{port}"
+    issuer = GOOD["GATEWAY_PUBLIC_URL"]
+    assert httpx.get(f"{base}/.well-known/oauth-authorization-server").json()["issuer"] == issuer
+    prm = httpx.get(f"{base}/.well-known/oauth-protected-resource/mcp").json()
+    assert prm["authorization_servers"] == [issuer]
+    # other URLs in the documents are untouched
+    asm = httpx.get(f"{base}/.well-known/oauth-authorization-server").json()
+    assert asm["authorization_endpoint"] == f"{issuer}/authorize" and asm["registration_endpoint"] == f"{issuer}/register"
+    # the `iss` parameter of the redirect back to the client (error redirect carries it as well)
+    reg = httpx.post(f"{base}/register", json={"redirect_uris": ["http://localhost:33418/cb"], "client_name": "t",
+                                               "token_endpoint_auth_method": "none"}).json()
+    r = httpx.get(f"{base}/authorize", params={
+        "response_type": "code", "client_id": reg["client_id"], "redirect_uri": "http://localhost:33418/cb",
+        "code_challenge": "x" * 43, "code_challenge_method": "S256", "state": "s", "scope": "Bad.Scope"},
+        follow_redirects=False)
+    assert r.status_code == 302
+    iss = up.parse_qs(up.urlparse(r.headers["location"]).query)["iss"][0]
+    assert iss == issuer
