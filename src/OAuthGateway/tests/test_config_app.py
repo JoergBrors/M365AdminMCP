@@ -127,3 +127,13 @@ def test_issuer_has_no_trailing_slash_everywhere():
     assert r.status_code == 302
     iss = up.parse_qs(up.urlparse(r.headers["location"]).query)["iss"][0]
     assert iss == issuer
+
+
+def test_redirect_log_contains_iss_but_no_code_or_state(caplog):
+    import logging
+
+    from gateway.issuer import _log_redirect
+    caplog.set_level(logging.INFO)
+    _log_redirect("/auth/callback", "https://chatgpt.com/cb?code=SECRETCODE&state=SECRETSTATE&iss=https%3A%2F%2Fgw.example.net")
+    assert "iss='https://gw.example.net'" in caplog.text
+    assert "SECRETCODE" not in caplog.text and "SECRETSTATE" not in caplog.text

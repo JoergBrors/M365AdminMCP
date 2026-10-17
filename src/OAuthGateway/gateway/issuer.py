@@ -10,8 +10,11 @@ without the trailing slash. This pure-ASGI wrapper rewrites exactly three places
 from __future__ import annotations
 
 import json
+import logging
 import re
+import urllib.parse as up
 
+log = logging.getLogger("gateway.issuer")
 _ISS_PARAM = re.compile(r"(iss=https%3A%2F%2F[^&%/]+)%2F(?=&|$)")
 
 
@@ -23,6 +26,15 @@ def _strip(value):
     if isinstance(value, dict):
         return {k: (_strip(v) if k in ("issuer", "authorization_servers") else v) for k, v in value.items()}
     return value
+
+
+def _log_redirect(path: str, location: str) -> None:
+    """Log where an OAuth redirect goes and which `iss` it carries - never code, state or other parameters."""
+    parts = up.urlparse(location)
+    query = up.parse_qs(parts.query)
+    if "iss" in query:
+        log.info("oauth redirect from=%s to=%s%s iss=%r params=%s", path, parts.netloc, parts.path, query["iss"][0],
+                 sorted(query))
 
 
 def issuer_without_trailing_slash(app):
