@@ -30,13 +30,16 @@ resource "azurerm_storage_account" "state" {
   account_replication_type        = "LRS"
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
-  shared_access_key_enabled       = false # nur Entra-Auth (Managed Identity)
+  # Shared Keys bleiben aktiviert: der azurerm-Provider pollt beim Anlegen die Data Plane per Key und der
+  # Deployer hat keine Data-Plane-Rolle. Die App nutzt ausschliesslich Managed Identity; Keys werden nirgends verteilt.
+  shared_access_key_enabled       = true
+  default_to_oauth_authentication = true
   tags                            = var.tags
 }
 
 resource "azurerm_storage_table" "oauth_state" {
-  name                 = "oauthstate"
-  storage_account_name = azurerm_storage_account.state.name
+  name               = "oauthstate"
+  storage_account_id = azurerm_storage_account.state.id # Control Plane (ARM), kein Key-Zugriff noetig
 }
 
 # --- Secrets (Werte erzeugt Terraform; liegen damit im geschuetzten Remote State) ---
