@@ -82,3 +82,9 @@ def test_token_audience_is_the_mcp_app_not_the_gateway_app():
     verifier = build_auth(cfg, build_storage(cfg))._token_validator
     assert verifier.audience == [GOOD["MCP_APP_CLIENT_ID"], GOOD["MCP_APP_ID_URI"]]
     assert GOOD["GATEWAY_ENTRA_CLIENT_ID"] not in verifier.audience
+
+
+def test_backend_client_is_pinned_to_handshake_era():
+    """Regression: .NET backend rejects modern per-request metadata (live tools/call failure)."""
+    from gateway.server import make_backend_client
+    assert make_backend_client("https://backend.example.net/mcp").mode == "legacy"

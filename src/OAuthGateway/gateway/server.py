@@ -53,10 +53,17 @@ class _ErrorLogging(Middleware):
             raise
 
 
+def make_backend_client(backend_mcp_url: str) -> ProxyClient:
+    transport = StreamableHttpTransport(backend_mcp_url, auth=_UpstreamBearer())
+    # The .NET MCP server (ModelContextProtocol.AspNetCore, protocol 2025-11-25) speaks the handshake era only.
+    # Without pinning, the proxy mirrors a modern client's era to the backend and the .NET server rejects the
+    # reserved per-request metadata (live failure on tools/call). Pin the backend leg to the handshake era.
+    return ProxyClient(transport, mode="legacy")
+
+
 def build_proxy(backend_mcp_url: str, auth) -> FastMCP:
     def factory() -> ProxyClient:
-        transport = StreamableHttpTransport(backend_mcp_url, auth=_UpstreamBearer())
-        return ProxyClient(transport)
+        return make_backend_client(backend_mcp_url)
 
     # forward_incoming_headers is irrelevant here: the transport sets Authorization itself,
     # and the incoming one is the FastMCP JWT which must never reach the backend.
