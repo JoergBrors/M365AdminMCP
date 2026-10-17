@@ -30,6 +30,7 @@ module "gateway" {
 
   gateway_client_id      = module.entra_id.gateway_client_id
   gateway_client_secret  = module.entra_id.gateway_client_secret
+  mcp_app_client_id      = module.entra_id.mcp_app_id
   mcp_app_identifier_uri = module.entra_id.mcp_app_identifier_uri
   backend_mcp_url        = "https://${module.infra.mcp_app_hostname}/mcp"
   gateway_sku            = var.gateway_sku

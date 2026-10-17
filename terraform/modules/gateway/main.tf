@@ -111,6 +111,7 @@ resource "azurerm_linux_web_app" "gateway" {
     "GATEWAY_JWT_SIGNING_KEY"        = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.gateway_jwt_signing_key.versionless_id})"
     "GATEWAY_STORAGE_ENCRYPTION_KEY" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.gateway_storage_encryption_key.versionless_id})"
     "MCP_APP_ID_URI"                 = var.mcp_app_identifier_uri
+    "MCP_APP_CLIENT_ID"              = var.mcp_app_client_id
     "GATEWAY_PUBLIC_URL"             = local.public_url
     "BACKEND_MCP_URL"                = var.backend_mcp_url
     "GATEWAY_STORAGE_ACCOUNT"        = azurerm_storage_account.state.name

@@ -14,6 +14,7 @@ GOOD = {
     "GATEWAY_JWT_SIGNING_KEY": "a" * 40,
     "GATEWAY_STORAGE_ENCRYPTION_KEY": "b" * 40,
     "MCP_APP_ID_URI": "api://mcp-server-dev",
+    "MCP_APP_CLIENT_ID": "00282801-c55c-4ce8-8039-5b80521e58f1",
     "GATEWAY_PUBLIC_URL": "https://gw.example.net",
     "BACKEND_MCP_URL": "https://backend.example.net/mcp",
     "GATEWAY_ALLOW_MEMORY_STORAGE": "true",
@@ -72,3 +73,12 @@ def test_azure_tables_storage_path_imports_and_builds():
     from gateway.app import build_storage
     cfg = load_config({**GOOD, "GATEWAY_STORAGE_ACCOUNT": "acct", "GATEWAY_ALLOW_MEMORY_STORAGE": "false"})
     assert build_storage(cfg) is not None
+
+
+def test_token_audience_is_the_mcp_app_not_the_gateway_app():
+    """Regression for the live failure: Entra issues aud=<MCP app GUID>; the gateway app id must not be accepted."""
+    from gateway.app import build_auth, build_storage
+    cfg = load_config(GOOD)
+    verifier = build_auth(cfg, build_storage(cfg))._token_validator
+    assert verifier.audience == [GOOD["MCP_APP_CLIENT_ID"], GOOD["MCP_APP_ID_URI"]]
+    assert GOOD["GATEWAY_ENTRA_CLIENT_ID"] not in verifier.audience
