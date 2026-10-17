@@ -13,6 +13,9 @@ Priorität P0–P3, Aufwand S/M/L (Schätzung, nicht gemessen). Abhängigkeiten 
 | ADR-0017 abschließen, sobald G3–G5 erfüllt sind | P2 | S | Tests |
 
 ## Phase 2 – Security Hardening
+
+Umgesetzt seit 2026-10-17: Parametervalidierung, NuGet-Patch, Rate Limits/HSTS/Request-Limits, Policy `DataAccess` + Zuweisungspflicht, UserContext-Audit, Datei-Logging (siehe [SECURITY-FINDINGS.md](security/SECURITY-FINDINGS.md)). Offen: persistente Telemetrie (F-017), IaC-Scanner, SAST, Registrierungsquote für DCR (F-011), Netzwerkisolation (F-008).
+
 | Maßnahme | Prio | Aufwand | Abhängigkeit/Risiko |
 |---|---|---|---|
 | Rate Limits, Request-Limits, HSTS (Q-SEC-4) | P1 | M | **umgesetzt**; Kompatibilität mit echten Clients und Live-Retest offen |
