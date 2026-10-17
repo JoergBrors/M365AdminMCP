@@ -8,6 +8,7 @@ no shared secrets, no extra Graph/ARM permission.
 from __future__ import annotations
 
 import logging
+import os
 
 import httpx2
 from fastmcp import FastMCP
@@ -43,7 +44,12 @@ class _ErrorLogging(Middleware):
                 status = getattr(getattr(e, "response", None), "status_code", None)
                 chain.append(f"{type(e).__name__}({status if status else str(e)[:200]})")
                 e = e.__cause__ or e.__context__
-            log.error("proxy request failed method=%s chain=%s", getattr(context, "method", "?"), " <- ".join(chain))
+            text = " <- ".join(chain)
+            log.error("proxy request failed method=%s chain=%s", getattr(context, "method", "?"), text)
+            if os.environ.get("GATEWAY_DEBUG_ERRORS", "").lower() == "true":
+                # Temporary diagnostics (off by default): error types/status codes only, never headers or tokens.
+                from mcp.shared.exceptions import MCPError
+                raise MCPError(code=-32603, message=f"gateway debug: {text}") from exc
             raise
 
 
