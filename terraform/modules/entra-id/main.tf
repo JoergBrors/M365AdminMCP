@@ -80,6 +80,11 @@ resource "random_uuid" "api_app_role" {}
 
 resource "azuread_service_principal" "api" {
   client_id = azuread_application.api.client_id
+
+  # Nur zugewiesene Identitaeten (MCP-Managed-Identity und MCP-App haben die App-Rolle Tasks.ReadWrite.All) erhalten ein Token fuer die API.
+  # Ohne diese Pflicht koennte jeder Tenant-Nutzer ueber den user-consentbaren Scope Tasks.ReadWrite ein Token holen (Finding F-016).
+  # Folge: Swagger/Delegated-Tests in Dev funktionieren nur fuer ausdruecklich zugewiesene Nutzer.
+  app_role_assignment_required = true
 }
 
 resource "azuread_application_password" "api" {
