@@ -10,6 +10,8 @@ Produktiv deploybares Repo für:
 
 ## Neueste Erweiterungen und Architekturänderungen
 
+> **Abschlussstand, Nachweise und alle offenen Punkte:** [`docs/STATUS.md`](docs/STATUS.md)
+
 Stand 2026-10-17. Nur was tatsächlich umgesetzt und geprüft ist; Offenes steht ausdrücklich dabei.
 
 - **Python-OAuth-Gateway (FastMCP 4.1.0)** in `src/OAuthGateway/`, in Dev auf einem eigenen B1-Plan (`entramcp-dev-oauth-gateway`). Es übernimmt Discovery, Dynamic Client Registration, CIMD und Consent für MCP-Clients, meldet Nutzer über eine zentrale Entra-App an und reicht das Entra-Token an den unveränderten .NET-Server weiter. **Nachgewiesen:** Entra-Login, `tools/list` (damals 18 Tools; `GetTasksDelegated` ist inzwischen entfernt, jetzt 17) und ein echter `tools/call` bis Microsoft Graph. **Clients:** ChatGPT (Gateway-Log: `/token` und `/mcp` mit 200), Claude und Grok funktionieren laut Eigentümer; Foundry geht direkt über die MCP-Adresse mit OAuth-Passthrough, nicht über das Gateway. **Offen:** Copilot Studio, M365 Copilot, Refresh und Re-Deploy sind nicht vollständig getestet. Details: [`docs/FASTMCP-GATEWAY-ARCHITECTURE.md`](docs/FASTMCP-GATEWAY-ARCHITECTURE.md), [`docs/FASTMCP-GATEWAY-TESTS.md`](docs/FASTMCP-GATEWAY-TESTS.md), [ADR-0017](docs/adr/0017-fastmcp-oauth-gateway.md) (akzeptiert für Dev, mit offenen Gates G6 Netzwerkisolation und G7 Kosten). Die .NET-OAuth-Fassade bleibt als Rollback aktiv ([`docs/FASTMCP-GATEWAY-ROLLBACK.md`](docs/FASTMCP-GATEWAY-ROLLBACK.md)).

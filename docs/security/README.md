@@ -20,4 +20,4 @@ Stand 2026-10-17. Grundsatz: Nur belegte Aussagen gelten als verifiziert; alles 
 | [SECURITY-DECISIONS.md](SECURITY-DECISIONS.md) | Sicherheitsrelevante Entscheidungen und offene Freigaben |
 | [INCIDENT-RESPONSE.md](INCIDENT-RESPONSE.md) | Vorgehen bei Vorfällen |
 
-Verwandt: [ADR-Audit](../adr/IMPLEMENTATION-AUDIT.md), [Gateway-Sicherheit](../FASTMCP-GATEWAY-SECURITY.md), [Offene Fragen](../OPEN-QUESTIONS.md).
+Gesamtstand und offene Punkte: [../STATUS.md](../STATUS.md). Verwandt: [ADR-Audit](../adr/IMPLEMENTATION-AUDIT.md), [Gateway-Sicherheit](../FASTMCP-GATEWAY-SECURITY.md), [Offene Fragen](../OPEN-QUESTIONS.md).

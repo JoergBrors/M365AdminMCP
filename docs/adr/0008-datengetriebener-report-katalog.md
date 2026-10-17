@@ -27,3 +27,6 @@ Der ApiServer baut den Graph-Pfad aus dem Katalogeintrag (`GraphApiClient.GetCat
 
 ## Änderungs-Leitfaden
 Neuer Graph-Report: nur Eintrag in `ReportCatalog.cs` (richtigen `ReportParamMode` wählen). Neue Parameterform: neuen `ReportParamMode` + `case` in `GetCatalogReportAsJsonAsync` + Beschreibung in `ListAdoptionReports` im Controller (Text der `parameters`-Spalte) + Tool-Parameter.
+
+## Aktualisierung 2026-10-17
+Die oben genannte **bekannte Lücke ist geschlossen**: `date`, `appId` und `serviceArea` werden von `ApiServer/Services/ReportParameterValidator.cs` strikt validiert (`yyyy-MM-dd`, GUID, `[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}`) und vor jedem Graph-Aufruf geprüft (Tests `ReportParameterValidatorTests`, `GraphApiClientReportTests`). `getApiUsage` bleibt delegiert-only und im App-only-Betrieb abgewiesen. Siehe Finding F-001.

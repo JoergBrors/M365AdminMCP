@@ -1,8 +1,10 @@
 # FastMCP-OAuth-Gateway: Machbarkeit (aktualisiert nach PoC)
 
+> **Historischer Bericht (PoC-Stand, `poc/` ist inzwischen entfernt und durch `src/OAuthGateway` ersetzt).** Den aktuellen Stand und alle offenen Punkte enthält [STATUS.md](STATUS.md).
+
 Stand: 2026-10-17 · Branch `feature/fastmcp-gateway-poc` · Status: **bedingtes GO für einen Dev-Tenant-Test, noch kein GO für Produktion** (siehe §9)
 
-Alle Aussagen sind entweder durch einen Test im PoC (`poc/fastmcp-gateway/tests`, 21 Tests grün), durch Quellcode-Lektüre (Pfad genannt) oder durch eine Microsoft/FastMCP-Doku-URL belegt. Alles andere ist ausdrücklich als **nicht verifiziert** markiert. Die erste Fassung dieses Audits (Chat-Bericht) wird in drei Punkten korrigiert: siehe §8.
+Alle Aussagen sind entweder durch einen Test im PoC (`poc/fastmcp-gateway/tests` (inzwischen ersetzt durch `src/OAuthGateway/tests`), 21 Tests grün), durch Quellcode-Lektüre (Pfad genannt) oder durch eine Microsoft/FastMCP-Doku-URL belegt. Alles andere ist ausdrücklich als **nicht verifiziert** markiert. Die erste Fassung dieses Audits (Chat-Bericht) wird in drei Punkten korrigiert: siehe §8.
 
 ## 1. Was der PoC beweist und was nicht
 
@@ -40,7 +42,7 @@ Risiken/Grenzen:
 
 ## 3. Warum der .NET-Teil nicht lokal bewiesen werden konnte
 
-`poc/fastmcp-gateway/tools/dotnet_leg.py` startet den **unveränderten** `src/McpServer` mit reiner Umgebungs-Konfiguration gegen einen Mock-Issuer. Ergebnis (Log des echten Servers):
+`src/OAuthGateway/tools/dotnet_leg.py` startet den **unveränderten** `src/McpServer` mit reiner Umgebungs-Konfiguration gegen einen Mock-Issuer. Ergebnis (Log des echten Servers):
 - Signatur und Audience wurden erfolgreich geprüft (`IDX10239`, `IDX10234`), Zugriffe mit falscher Audience/Issuer/Signatur, abgelaufen oder ohne Token wurden korrekt abgelehnt.
 - Das gültige Token wurde trotzdem abgelehnt: Microsoft.Identity.Web verlangt HTTPS-Metadaten und prüft den Issuer gegen bekannte Microsoft-Autoritäten (`IDX40001`). Ein lokaler Mock-IdP kann das nicht erfüllen, ohne den Produktionscode zu ändern. Das wäre eine Aufweichung und ist ausgeschlossen.
 
@@ -132,7 +134,7 @@ GitHub-OIDC: bestehende Rechte (Contributor auf Ziel-RG, `Application.ReadWrite.
 ## 11. Reproduzierbarkeit
 
 ```bash
-cd poc/fastmcp-gateway
+cd src/OAuthGateway
 python -m venv .venv && ./.venv/Scripts/python -m pip install -r requirements.txt
 ./.venv/Scripts/python -m pytest tests -q        # 21 Tests, Mock-IdP + Python-Backend-Stub
 ./.venv/Scripts/python tools/dotnet_leg.py       # dokumentiert den .NET-Befund aus §3 (erwartet FAIL bei „valid“)

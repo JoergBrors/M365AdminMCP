@@ -1,5 +1,7 @@
 # Offene Fragen
 
+Konsolidierte Übersicht aller offenen Punkte (Priorität, Zuständigkeit, nächster Schritt): [STATUS.md](STATUS.md), Abschnitt 6.
+
 Stand 2026-10-17. Entscheidungen, die Sicherheitsgrenzen, Kosten, öffentliche Schnittstellen oder Berechtigungen ändern, trifft der Eigentümer. Priorität: P0 kritisch … P3 niedrig.
 
 | ID | Frage | Hintergrund | ADRs | Optionen | Empfehlung | Sicherheitsauswirkung | Verantwortlich | Prio | Status |

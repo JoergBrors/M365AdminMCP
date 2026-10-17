@@ -18,3 +18,6 @@ Neben JWT-Bearer akzeptiert der McpServer den Header `X-MCP-API-Key`. Ist `McpAu
 
 ## Änderungs-Leitfaden
 Härtung: `CryptographicOperations.FixedTimeEquals` verwenden, Key nur für Development erlauben oder per Key Vault + Rotation, pro Client eigene Keys mit Namen im Claim (Audit). Abschaffen: Middleware entfernen, `McpAuth__ApiKey` aus den App Settings streichen.
+
+## Aktualisierung 2026-10-17
+Der Vergleich ist jetzt zeitkonstant (`CryptographicOperations.FixedTimeEquals`; Längenunterschied bleibt erkennbar). In Azure ist **kein** `McpAuth__ApiKey` gesetzt, der Weg ist dort deaktiviert. Eine Verbindung über den Key trägt im Audit `authMethod=apikey` ohne Nutzer-ID (UserContext, ADR-0006). Empfehlung weiterhin: abschaffen (Entscheidung D-4 offen), siehe [STATUS.md](../STATUS.md).
