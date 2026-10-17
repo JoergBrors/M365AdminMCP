@@ -22,6 +22,7 @@ class GatewayConfig:
     jwt_signing_key: str = field(repr=False)
     storage_encryption_key: str = field(repr=False)
     mcp_app_id_uri: str
+    mcp_app_client_id: str
     public_url: str
     backend_mcp_url: str
     storage_account: str | None = None
@@ -50,6 +51,7 @@ def load_config(env=None) -> GatewayConfig:
         jwt_signing_key=_req(env, "GATEWAY_JWT_SIGNING_KEY"),
         storage_encryption_key=_req(env, "GATEWAY_STORAGE_ENCRYPTION_KEY"),
         mcp_app_id_uri=_req(env, "MCP_APP_ID_URI"),
+        mcp_app_client_id=_req(env, "MCP_APP_CLIENT_ID"),
         public_url=_req(env, "GATEWAY_PUBLIC_URL").rstrip("/"),
         backend_mcp_url=_req(env, "BACKEND_MCP_URL"),
         storage_account=(env.get("GATEWAY_STORAGE_ACCOUNT") or None),
@@ -61,6 +63,8 @@ def load_config(env=None) -> GatewayConfig:
         problems.append("AZURE_TENANT_ID must be a GUID (single tenant, no 'common'/'organizations')")
     if not _GUID.match(cfg.client_id):
         problems.append("GATEWAY_ENTRA_CLIENT_ID must be a GUID")
+    if not _GUID.match(cfg.mcp_app_client_id):
+        problems.append("MCP_APP_CLIENT_ID must be a GUID")
     if len(cfg.jwt_signing_key) < 32:
         problems.append("GATEWAY_JWT_SIGNING_KEY must be at least 32 characters")
     if len(cfg.storage_encryption_key) < 32:

@@ -29,13 +29,21 @@ def build_storage(cfg: GatewayConfig):
 
 
 def build_auth(cfg: GatewayConfig, storage) -> AzureProvider:
-    return AzureProvider(
+    auth = AzureProvider(
         client_id=cfg.client_id, client_secret=cfg.client_secret, tenant_id=cfg.tenant_id,
         identifier_uri=cfg.mcp_app_id_uri, required_scopes=["Mcp.Access"],
         base_url=cfg.public_url, jwt_signing_key=cfg.jwt_signing_key, client_storage=storage,
         forward_resource=False,                      # Entra rejects RFC 8707 resource (AADSTS9010010)
         require_authorization_consent=True,          # never "external"/False in deployments
     )
+    # AzureProvider assumes the gateway app itself is the API (aud = gateway client id). Here Entra issues the
+    # token for the separate MCP app, which the .NET server validates: accept exactly that audience (GUID in v2
+    # tokens, or its identifier URI), nothing else - in particular not the gateway's own client id.
+    verifier = auth._token_validator
+    if not hasattr(verifier, "audience"):
+        raise RuntimeError("unexpected FastMCP token verifier; cannot pin the MCP audience")
+    verifier.audience = [cfg.mcp_app_client_id, cfg.mcp_app_id_uri]
+    return auth
 
 
 def create_app(cfg: GatewayConfig | None = None):

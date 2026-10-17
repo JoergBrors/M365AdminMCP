@@ -40,6 +40,10 @@ variable "gateway_client_secret" {
   sensitive = true
 }
 
+variable "mcp_app_client_id" {
+  type = string
+}
+
 variable "mcp_app_identifier_uri" {
   type = string
 }
