@@ -10,7 +10,7 @@
 | Backend-Verbindung des Gateways auf Handshake-Protokoll festgelegt | .NET-Server lehnt moderne Per-Request-Metadaten ab | 2026-10-17 |
 
 ## Umgesetzt in dieser Arbeit (Branch `feature/security-hardening-docs`)
-Report-Parametervalidierung (F-001), NuGet-Patch (F-002), zeitkonstanter API-Key-Vergleich (F-003), CI-NuGet-Audit; danach Rate Limiting, Request-Limits und HSTS (D-5).
+Report-Parametervalidierung (F-001), NuGet-Patch (F-002), zeitkonstanter API-Key-Vergleich (F-003), CI-NuGet-Audit; danach Rate Limiting, Request-Limits und HSTS (D-5); Policy `DataAccess` (nur App-Rolle) und Entfernen von `GetTasksDelegated` (F-016, D-2); Zuweisungspflicht an der API-App (F-016); UserContext nur für Audit (D-1, siehe ADR-0006).
 
 ## Benötigen eine ausdrückliche Freigabe (nicht still entschieden)
 | ID | Entscheidung | Optionen | Empfehlung |

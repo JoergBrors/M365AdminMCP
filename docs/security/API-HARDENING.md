@@ -21,6 +21,7 @@ Status je Maßnahme: ✅ vorhanden und belegt, ⚠️ teilweise, ❌ fehlt, ❓ 
 | Fehlerbehandlung / ProblemDetails | ❓ | keine eigene Middleware gefunden (`UseExceptionHandler`/`AddProblemDetails` ohne Treffer); Verhalten in Production nicht getestet |
 | Health-Endpunkte | ✅ | Gateway/McpServer `/healthz` ohne Daten |
 | API-Key | ⚠️ | `FixedTimeEquals`; in Azure nicht gesetzt (F-003) |
+| Nutzeridentität (Audit) | ✅ | `McpServer/Auth/UserContext.cs` (geteilt), `ApiServer/Auth/UserContextAudit.cs`; 18 Tests `UserContextTests`; keine Autorisierungswirkung |
 | NuGet-Schwachstellen | ✅ | `System.Security.Cryptography.Pkcs` auf 10.0.13; CI-Schritt `dotnet list package --vulnerable` (F-002) |
 
 ## Nächste Schritte (nach Priorität)

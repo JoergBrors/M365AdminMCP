@@ -3,7 +3,7 @@
 ## Schnelle PR-Checks (laufen in jedem PR, `.github/workflows/deploy.yml`)
 | Job/Schritt | Prüft | Stand |
 |---|---|---|
-| `build`: `dotnet build` + `dotnet test` | 162 Tests (ApiServer) | grün |
+| `build`: `dotnet build` + `dotnet test` | 180 Tests (ApiServer) | grün |
 | `build`: NuGet-Audit | `dotnet list package --vulnerable --include-transitive`, bricht bei Treffern ab | neu, lokal grün nach F-002 |
 | `gateway-ci`: `ruff` | Lint Gateway | grün |
 | `gateway-ci`: `pytest` | 58 Tests: OAuth-Flow, Limits, DCR, Consent, PKCE, Redirect, Konfiguration, Logging, Issuer | grün |
