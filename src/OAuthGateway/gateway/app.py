@@ -24,7 +24,7 @@ class MaskSensitiveQuery(logging.Filter):
     """uvicorn's access log prints the full request URL; mask OAuth codes, state and tokens before they are written."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.msg = _SENSITIVE_QUERY.sub(r"***", record.getMessage())
+        record.msg = _SENSITIVE_QUERY.sub(lambda m: m.group(1) + "***", record.getMessage())
         record.args = ()
         return True
 
