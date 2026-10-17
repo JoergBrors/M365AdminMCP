@@ -130,6 +130,17 @@ resource "azurerm_linux_web_app" "api" {
     type = "SystemAssigned"
   }
 
+  # Container-Stdout/ILogger in Dateien (Kudu /home/LogFiles). Ohne diesen Block gibt es fuer die .NET-Apps keine abrufbaren Logs;
+  # ein Application-Insights-SDK ist im Code nicht eingebunden (keine Telemetrie). Aufbewahrung bewusst kurz.
+  logs {
+    http_logs {
+      file_system {
+        retention_in_days = 1
+        retention_in_mb   = 35
+      }
+    }
+  }
+
   site_config {
     always_on = !local.is_free_tier
     application_stack {
@@ -169,6 +180,17 @@ resource "azurerm_linux_web_app" "mcp" {
 
   identity {
     type = "SystemAssigned"
+  }
+
+  # Container-Stdout/ILogger in Dateien (Kudu /home/LogFiles). Ohne diesen Block gibt es fuer die .NET-Apps keine abrufbaren Logs;
+  # ein Application-Insights-SDK ist im Code nicht eingebunden (keine Telemetrie). Aufbewahrung bewusst kurz.
+  logs {
+    http_logs {
+      file_system {
+        retention_in_days = 1
+        retention_in_mb   = 35
+      }
+    }
   }
 
   site_config {

@@ -15,7 +15,7 @@ Stand 2026-10-17. Entscheidungen, die Sicherheitsgrenzen, Kosten, öffentliche S
 | Q-SEC-4 | Rate Limits und Request-Größen | umgesetzt (Defaults 120/min je Aufrufer, OAuth 30/min je IP, Gateway `/register` 10/min); Wirkung mit echten Clients und Last nicht gemessen | 0010 | Werte nach Betriebserfahrung anpassen | beobachten (429-Rate) | mittel | Entwicklung | P2 | umgesetzt, Retest offen |
 | Q-SEC-5 | State-Account RBAC prüfen | Secrets im State | 0001, 0007 | Review | prüfen | hoch | Eigentümer | P1 | offen |
 | Q-AZ-1 | Netzwerkisolation | alles öffentlich erreichbar | 0013 | IP-Restriktion; Private Endpoint (kostenpflichtig) | IP-Restriktion prüfen | mittel | Eigentümer (Kosten) | P2 | offen |
-| Q-AZ-2 | Gateway-Logs nach Log Analytics | Logs rotieren nach 1 Tag | – | Diagnoseeinstellung (kostenpflichtig nach Volumen) | einrichten | gering | Eigentümer (Kosten) | P2 | offen |
+| Q-AZ-2 | Telemetrie/Logs nach Application Insights bzw. Log Analytics (alle drei Dienste) | Container-Logs rotieren nach 1 Tag; App Insights erhält keine Daten (kein SDK) | – | Diagnoseeinstellung (kostenpflichtig nach Volumen) | einrichten | gering | Eigentümer (Kosten) | P2 | offen |
 | Q-AZ-3 | Storage-Shared-Keys wieder abschalten | akzeptiert (F-012) | 0017 | `storage_use_azuread` + Data-Plane-Rolle für den Deployer | prüfen | gering | Entwicklung | P3 | offen |
 | Q-TF-1 | IaC-Scanner (tfsec/Checkov/Trivy) | fehlt | 0012 | als nicht blockierender Job | einführen | gering | Entwicklung | P2 | offen |
 | Q-TF-2 | Mehrere Umgebungen (staging/prod) | nur `dev` | 0012 | tfvars, State-Key, Federated Credential | bei Bedarf | – | Eigentümer | P3 | offen |

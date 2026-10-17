@@ -10,7 +10,7 @@
 | SAST | – | **fehlt** |
 | Terraform-Scans | `fmt`/`validate`/Plan; kein IaC-Scanner | teilweise |
 | Testberichte | [FASTMCP-GATEWAY-TESTS.md](../FASTMCP-GATEWAY-TESTS.md), CI-Läufe (GitHub Actions) | vorhanden |
-| Audit-Logs | Container-Logs (Kudu, 1 Tag), App Insights/Log Analytics (.NET-Apps), Azure Activity Log (nicht geprüft) | teilweise |
+| Audit-Logs | Container-Dateilogs (Kudu, 1 Tag/35 MB) für Gateway, API und MCP (API/MCP per Terraform-Block `logs`); **keine Telemetrie in Application Insights** (kein SDK im Code, am 2026-10-17 nur 1 Request und 1 Trace in der Instanz), Azure Activity Log nicht geprüft | **unzureichend für ein Audit** (Aufbewahrung 1 Tag) |
 | Vulnerability Management | [SECURITY-FINDINGS.md](SECURITY-FINDINGS.md) | vorhanden |
 | Sicherheitsfreigaben | – | **fehlt** (Eigentümer) |
 | Ausnahmen und Restrisiken | Findings mit Status `accepted`/`open` | vorhanden |
