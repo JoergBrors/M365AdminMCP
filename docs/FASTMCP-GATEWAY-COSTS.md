@@ -17,3 +17,6 @@
 - Falls F1 oder Azure Tables ungeeignet sind, ist ein kostenpflichtiger Plan eine **Entscheidung des Nutzers**; es wird nichts automatisch erstellt.
 
 G7 bleibt offen, bis die Kosten nach einigen Tagen Betrieb in Azure Cost Management abgelesen wurden.
+
+## Änderung 2026-10-17: Gateway-Plan auf B1
+Auf ausdrücklichen Wunsch des Eigentümers läuft der Gateway-Plan in Dev als **B1** (Basic, Linux, kostenpflichtig, Always On) statt F1, weil die F1-CPU-Quota nach Absturz und Redeploys erschöpft war. Der monatliche B1-Preis wurde nicht verifiziert (Preisseiten lieferten keine Zahlen); in Azure Cost Management beobachten. Der bestehende Plan `entramcp-dev-plan` bleibt F1. Rückstellung auf F1: `gateway_sku = "F1"` (Terraform-Plan prüfen).

@@ -24,3 +24,4 @@ azure_health_subscription_ids = ["d6743694-573f-4c53-bdce-dac70756a7f3"]
 
 # FastMCP OAuth Gateway (separater Linux-F1-Plan, siehe docs/FASTMCP-GATEWAY-*.md)
 enable_gateway = true
+gateway_sku    = "B1" # Eigentuemer-Entscheidung 2026-10-17: F1-CPU-Quota reichte nicht (kostenpflichtig, siehe docs/FASTMCP-GATEWAY-COSTS.md)

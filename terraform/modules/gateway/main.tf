@@ -11,7 +11,7 @@ resource "azurerm_service_plan" "gateway" {
   location            = var.location
   resource_group_name = var.resource_group_name
   os_type             = "Linux"
-  sku_name            = "F1" # bewusst fest: kein automatischer Fallback auf kostenpflichtige SKUs
+  sku_name            = var.gateway_sku # Default F1; Dev wurde auf ausdruecklichen Wunsch des Eigentümers auf B1 gestellt (F1-CPU-Quota)
   tags                = var.tags
 }
 
@@ -87,7 +87,7 @@ resource "azurerm_linux_web_app" "gateway" {
   }
 
   site_config {
-    always_on        = false # F1 unterstuetzt kein Always On
+    always_on        = var.gateway_sku != "F1" # F1 unterstuetzt kein Always On
     http2_enabled    = true
     ftps_state       = "Disabled"
     app_command_line = "python -m uvicorn gateway.app:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=*"
