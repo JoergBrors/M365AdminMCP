@@ -19,9 +19,16 @@ log = logging.getLogger("gateway")
 def build_storage(cfg: GatewayConfig):
     if cfg.storage_account:
         from azure.identity.aio import DefaultAzureCredential
-        from key_value.aio.stores.azure_tables import AzureTablesStore
+        from key_value.aio.stores.azure_tables import (
+            AzureTablesSanitizationStrategy,
+            AzureTablesStore,
+        )
         inner = AzureTablesStore(account_name=cfg.storage_account, credential=DefaultAzureCredential(),
-                                 table_name=cfg.storage_table, auto_create=False)
+                                 table_name=cfg.storage_table, auto_create=False,
+                                 # CIMD clients use a URL as client_id; '/' is not allowed in Azure Tables keys
+                                 # (live failure: HTTP 500 on /authorize for Claude/ChatGPT). Safe keys stay unchanged.
+                                 key_sanitization_strategy=AzureTablesSanitizationStrategy(),
+                                 collection_sanitization_strategy=AzureTablesSanitizationStrategy())
     else:
         inner = MemoryStore()
     return FernetEncryptionWrapper(key_value=inner, source_material=cfg.storage_encryption_key,
