@@ -17,6 +17,10 @@ async def main(url: str) -> int:
             print(f"tools/list OK via gateway: {len(tools)} tools")
             for t in tools[:15]:
                 print(" -", t.name)
+            # tools/call through the gateway (app-only tool; no user token is forwarded to the API)
+            res = await c.call_tool("get_service_health_overview", {})
+            text = " ".join(getattr(b, "text", "") for b in res.content)
+            print("tools/call get_service_health_overview OK:", " ".join(text[:300].split()))
         return 0
     except BaseException as e:  # noqa: BLE001 - diagnostic output for the live check
         leaves = getattr(e, "exceptions", [e])
