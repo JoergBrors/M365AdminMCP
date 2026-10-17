@@ -7,7 +7,7 @@ namespace ApiServer.Controllers;
 
 [ApiController]
 [Route("api/m365/status")]
-[Authorize(Policy = PolicyNames.TasksReadWrite)]
+[Authorize(Policy = PolicyNames.DataAccess)]
 public class M365StatusController : ControllerBase
 {
     private readonly GraphApiClient _graphApiClient;

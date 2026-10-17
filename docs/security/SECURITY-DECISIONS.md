@@ -15,8 +15,8 @@ Report-Parametervalidierung (F-001), NuGet-Patch (F-002), zeitkonstanter API-Key
 ## Benötigen eine ausdrückliche Freigabe (nicht still entschieden)
 | ID | Entscheidung | Optionen | Empfehlung |
 |---|---|---|---|
-| D-1 | Autorisierungsmodell (F-004/F-005) | (a) bleibt tenantweit, (b) App-Rollen je Datenbereich auf der MCP-App, (c) nutzerbezogene Filter | (b): Rollen `Mcp.Reports.Read`, `Mcp.Health.Read`, `Mcp.Messages.Read`; **Migration**: Policies zuerst additiv einführen (Scope **oder** bisherige Rolle), Clients/Nutzer zuweisen, erst nach Messfenster die alte Policy entfernen |
-| D-2 | `GetTasksDelegated` (F-006) | entfernen / Token nur serverseitig (OBO, benötigt Secret statt MI) | entfernen, solange kein Task-Anwendungsfall besteht |
+| D-1 | **ENTSCHIEDEN 2026-10-17:** Es bleibt bei der einen Berechtigung `Mcp.Access`, keine weiteren App-Rollen. Nutzeridentität nur für Audit (UserContext), nicht als Autorisierungsinput. Ursprüngliche Frage: Autorisierungsmodell (F-004/F-005) | (a) bleibt tenantweit, (b) App-Rollen je Datenbereich auf der MCP-App, (c) nutzerbezogene Filter | (b): Rollen `Mcp.Reports.Read`, `Mcp.Health.Read`, `Mcp.Messages.Read`; **Migration**: Policies zuerst additiv einführen (Scope **oder** bisherige Rolle), Clients/Nutzer zuweisen, erst nach Messfenster die alte Policy entfernen |
+| D-2 | **ENTSCHIEDEN 2026-10-17: entfernt.** Ursprüngliche Frage: `GetTasksDelegated` (F-006) | entfernen / Token nur serverseitig (OBO, benötigt Secret statt MI) | entfernen, solange kein Task-Anwendungsfall besteht |
 | D-3 | Netzwerkisolation (F-008) | IP-Restriktion auf Gateway-Ausgang; Private Endpoint (kostenpflichtig) | IP-Restriktion prüfen, bevor Geld ausgegeben wird |
 | D-4 | `X-MCP-API-Key` (ADR-0014) | abschaffen / pro Client scopen | abschaffen (in Azure ohnehin ungenutzt) |
 | D-5 | Rate Limiting / Limits (F-009, F-011) | in-app (.NET `RateLimiter`, Gateway-Middleware) | **umgesetzt** (Branch `feature/request-hardening`); Defaults bewusst großzügig, per Konfiguration anpassbar oder abschaltbar (`Hardening:Enabled=false`, `GATEWAY_LIMITS_ENABLED=false`) |
