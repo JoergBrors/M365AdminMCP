@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.azure import AzureProvider
@@ -14,6 +15,21 @@ from .issuer import issuer_without_trailing_slash
 from .server import build_proxy
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+_SENSITIVE_PARAMS = ("code", "state", "session_state", "code_challenge", "txn_id", "csrf_token", "access_token",
+                      "refresh_token", "id_token", "client_secret", "assertion")
+_SENSITIVE_QUERY = re.compile(r"([?&](?:" + "|".join(_SENSITIVE_PARAMS) + r")=)[^&\s\"]*")
+
+
+class MaskSensitiveQuery(logging.Filter):
+    """uvicorn's access log prints the full request URL; mask OAuth codes, state and tokens before they are written."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = _SENSITIVE_QUERY.sub(lambda m: m.group(1) + "***", record.getMessage())
+        record.args = ()
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(MaskSensitiveQuery())
 log = logging.getLogger("gateway")
 
 
