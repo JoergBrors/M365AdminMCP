@@ -24,7 +24,7 @@ Die erste Fassung (ungepinntes `npx`, v1-Annahmen) war fehlerhaft: Der Marker `M
 + Ein F5, reproduzierbare Inspector-Version, Breakpoints in MCP und API, kein Eingriff in Azure-Auth oder Terraform.
 + Mehrfaches F5 räumt kontrolliert nur eigene Prozesse ab.
 − Benötigt Node ≥ 22.19.0 und `pwsh`; erster Start installiert ~118 npm-Pakete (Netz nötig).
-− Lokal ist `/mcp` unauthentisiert (nur Loopback). Delegierte Tools (`get_tasks_delegated`) sind ohne Nutzer-Token nicht nutzbar.
+− Lokal ist `/mcp` unauthentisiert (nur Loopback). Delegierte Tools (`get_tasks_delegated`, inzwischen entfernt) sind ohne Nutzer-Token nicht nutzbar.
 − Der Token steht in der Kommandozeile des Browser-Aufrufs (lokale Sitzung) und im Inspector-Prozess.
 − Nicht von der Konfiguration abgedeckt: Inspector-Auto-Connect gegen Azure mit OAuth.
 

@@ -30,3 +30,8 @@ Identität des **Nutzers** (On-Behalf-Of, OBO). Der ApiServer akzeptiert beides 
 Echte Nutzer-Autorisierung gewünscht (z. B. Rollen pro Nutzer, Audit)? → Eingehendes Token im MCP-Tool aus dem `HttpContext` nehmen (nicht als Parameter) und per OBO
 weiterreichen, im ApiServer eine eigene Policy je Datenbereich einführen (z. B. `M365Read`) und Terraform-Scopes/Rollen ergänzen. Bei Umbenennung der Policy alle Controller
 und `Program.cs` gemeinsam ändern. Managed Identity unterstützt kein OBO – dann Client Secret/Zertifikat im MCP verwenden (ADR-0007).
+
+## Aktualisierung 2026-10-17 (Entscheidungen D-1/D-2, Finding F-016)
+- **`GetTasksDelegated` ist entfernt.** Es war in Produktion nicht lauffähig (`UseManagedIdentity=true`) und nahm ein Token als LLM-Parameter entgegen. OBO wird nicht eingeführt. `ApiTokenService.GetOnBehalfOfTokenAsync` bleibt vorerst als ungenutzter Code bestehen.
+- **Autorisierung:** Es bleibt bei der einen Berechtigung `Mcp.Access`; keine weiteren Rollen (D-1). Die API unterscheidet jetzt zwei Policies (`ApiServer/Auth/ApiAuthorizationPolicies.cs`): `DataAccess` (nur App-Rolle `Tasks.ReadWrite.All`) für Status, Messages, Reports und Health; `TasksReadWrite` (Rolle ODER Scope) nur noch für den Task-Demo-Controller. Damit ist der Direktzugriff mit einem delegierten Nutzer-Token auf die Daten-Controller geschlossen.
+- **Nutzeridentität:** soll als UserContext nur für Audit übertragen werden (kein Autorisierungsinput); siehe `docs/security/SECURITY-DECISIONS.md`.

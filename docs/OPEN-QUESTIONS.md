@@ -9,8 +9,8 @@ Stand 2026-10-17. Entscheidungen, die Sicherheitsgrenzen, Kosten, öffentliche S
 | Q-GW-2 | Funktioniert Claude end-to-end (CIMD)? | URL-`client_id`-Fehler (500) behoben; Rückmeldung zum Gesamtablauf fehlt | 0017 | Test mit Claude | testen | – | Eigentümer | P1 | offen |
 | Q-GW-3 | Copilot Studio gegen das Gateway („Dynamic discovery“)? | nicht getestet | 0017 | Test | testen | – | Eigentümer | P1 | offen |
 | Q-GW-4 | Startzeit des Gateway-Containers (140–170 s) | Timeouts bei OAuth-Clients möglich | 0013, 0017 | Start optimieren, Warmup, größerer Plan | messen und optimieren | Verfügbarkeit | Entwicklung | P2 | offen |
-| Q-AUTH-1 | Autorisierungsmodell | alle `Mcp.Access`-Nutzer sehen tenantweite Daten | 0006 | siehe SECURITY-DECISIONS D-1 | Rollen je Datenbereich | **hoch** | Eigentümer | P1 | Entscheidung offen |
-| Q-AUTH-2 | `GetTasksDelegated` behalten? | Token als LLM-Parameter; OBO in Prod nicht möglich | 0006 | entfernen / OBO serverseitig | entfernen | mittel | Eigentümer | P1 | offen |
+| Q-AUTH-1 | **entschieden (D-1): keine weiteren Rollen.** Autorisierungsmodell | alle `Mcp.Access`-Nutzer sehen tenantweite Daten | 0006 | siehe SECURITY-DECISIONS D-1 | Rollen je Datenbereich | **hoch** | Eigentümer | P1 | Entscheidung offen |
+| Q-AUTH-2 | **entschieden (D-2): entfernt.** `GetTasksDelegated` behalten? | Token als LLM-Parameter; OBO in Prod nicht möglich | 0006 | entfernen / OBO serverseitig | entfernen | mittel | Eigentümer | P1 | offen |
 | Q-SEC-3 | `X-MCP-API-Key` abschaffen? | In Azure nicht gesetzt | 0014 | abschaffen / scopen | abschaffen | mittel | Eigentümer | P2 | offen |
 | Q-SEC-4 | Rate Limits und Request-Größen | umgesetzt (Defaults 120/min je Aufrufer, OAuth 30/min je IP, Gateway `/register` 10/min); Wirkung mit echten Clients und Last nicht gemessen | 0010 | Werte nach Betriebserfahrung anpassen | beobachten (429-Rate) | mittel | Entwicklung | P2 | umgesetzt, Retest offen |
 | Q-SEC-5 | State-Account RBAC prüfen | Secrets im State | 0001, 0007 | Review | prüfen | hoch | Eigentümer | P1 | offen |
@@ -19,7 +19,7 @@ Stand 2026-10-17. Entscheidungen, die Sicherheitsgrenzen, Kosten, öffentliche S
 | Q-AZ-3 | Storage-Shared-Keys wieder abschalten | akzeptiert (F-012) | 0017 | `storage_use_azuread` + Data-Plane-Rolle für den Deployer | prüfen | gering | Entwicklung | P3 | offen |
 | Q-TF-1 | IaC-Scanner (tfsec/Checkov/Trivy) | fehlt | 0012 | als nicht blockierender Job | einführen | gering | Entwicklung | P2 | offen |
 | Q-TF-2 | Mehrere Umgebungen (staging/prod) | nur `dev` | 0012 | tfvars, State-Key, Federated Credential | bei Bedarf | – | Eigentümer | P3 | offen |
-| Q-API-1 | Policies je Datenbereich (Migration) | siehe Q-AUTH-1 | 0006 | additive Einführung | umsetzen nach Entscheidung | hoch | Entwicklung | P1 | wartet auf Q-AUTH-1 |
+| Q-API-1 | **erledigt in reduzierter Form:** `DataAccess` vs. `TasksReadWrite`. Policies je Datenbereich (Migration) | siehe Q-AUTH-1 | 0006 | additive Einführung | umsetzen nach Entscheidung | hoch | Entwicklung | P1 | wartet auf Q-AUTH-1 |
 | Q-API-2 | Report-Paging und Antwortgrößen | kein `nextLink`, unbegrenzt | 0010 | Limits, Paging | umsetzen | mittel | Entwicklung | P2 | offen |
 | Q-EXT-1 | Gemeinsame Bibliothek statt Compile-Links | 3 Links | 0009 | `src/Shared` | mit dem zweiten MCP angehen | – | Entwicklung | P3 | offen |
 | Q-EXT-2 | Testprojekt für den McpServer | keines vorhanden | 0004 | xUnit-Projekt | anlegen | mittel (Sicherheits-Regressionen) | Entwicklung | P2 | offen |

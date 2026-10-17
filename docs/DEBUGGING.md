@@ -46,9 +46,9 @@ Development-Settings nie committen (`.gitignore`: `**/appsettings.Development.js
 Die Konfiguration **„Debug API + MCP“** (ohne Inspector) und die Einzelkonfigurationen bleiben unverändert (Auth an).
 
 ## 5. Erwartetes Ergebnis lokal
-- **18 Tools** (11 bestehende + 7 Microsoft-Health-Tools, SDK liefert snake_case-Namen). Neu: `intune_service_health`, `intune_service_incidents`, `microsoft_service_messages`, `azure_service_health`, `azure_resource_health`, `azure_subscription_resource_health`, `microsoft_health_summary` (siehe `docs/microsoft-health/`). Bestehend: `get_tasks_app_only`, `get_tasks_delegated`, `get_service_health_overview`, `get_service_health_detail`, `get_degraded_service_health_details`, `get_service_health_issues`, `get_message_center_messages`, `get_office365_active_user_detail`, `get_m365_app_user_detail`, `list_adoption_reports`, `get_adoption_report`.
+- **17 Tools** (10 bestehende + 7 Microsoft-Health-Tools, SDK liefert snake_case-Namen). Neu: `intune_service_health`, `intune_service_incidents`, `microsoft_service_messages`, `azure_service_health`, `azure_resource_health`, `azure_subscription_resource_health`, `microsoft_health_summary` (siehe `docs/microsoft-health/`). Bestehend: `get_tasks_app_only`, `get_tasks_delegated`, `get_service_health_overview`, `get_service_health_detail`, `get_degraded_service_health_details`, `get_service_health_issues`, `get_message_center_messages`, `get_office365_active_user_detail`, `get_m365_app_user_detail`, `list_adoption_reports`, `get_adoption_report`.
 - App-only-Tools funktionieren: McpServer holt mit dem lokalen Client Secret ein App-only-Token für den ApiServer, der ApiServer ebenso für Graph (`UseManagedIdentity=false`). Beispiel `get_tasks_app_only` → `{"callerType":"app-only",…}`.
-- `get_tasks_delegated` braucht ein echtes Nutzer-Token als Parameter und ist ohne Auth nicht sinnvoll nutzbar.
+- `get_tasks_delegated` wurde entfernt (Token als LLM-Parameter, in Produktion nicht lauffähig; siehe `docs/security/SECURITY-DECISIONS.md`, D-2).
 - Breakpoints z. B. in `Tools/M365StatusTool.cs`, `Services/ApiServerClient.cs`, `ApiServer/Services/GraphApiClient.cs` greifen beim Aufruf im Inspector.
 
 ## 6. Sicherheit des lokalen Debug-Modus
@@ -118,7 +118,7 @@ Nicht mit der Inspector-Konfiguration (Loopback-Schutz blockt den Tunnel absicht
 
 ## 12. Checkliste vor dem Merge
 - [ ] `dotnet build EntraMcpMvp.sln` grün
-- [ ] F5 „Debug API + MCP + Inspector“: Browser öffnet, Inspector verbunden, 18 Tools sichtbar
+- [ ] F5 „Debug API + MCP + Inspector“: Browser öffnet, Inspector verbunden, 17 Tools sichtbar
 - [ ] Bei Auth-/OAuth-Änderungen: Claude, ChatGPT und Copilot geprüft (Konfiguration „Debug API + MCP“ + Tunnel oder Azure)
 - [ ] `McpAuth__RequireAuthentication` nur in der Inspector-Launch-Konfiguration `false`
 - [ ] Keine Secrets im Diff
