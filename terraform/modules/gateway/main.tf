@@ -97,8 +97,19 @@ resource "azurerm_linux_web_app" "gateway" {
     }
   }
 
+  # Container-Stdout in Dateien (Kudu /home/LogFiles). Ohne diesen Block setzt jeder Apply die Einstellung zurueck.
+  logs {
+    http_logs {
+      file_system {
+        retention_in_days = 1
+        retention_in_mb   = 35
+      }
+    }
+  }
+
   app_settings = {
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.application_insights_connection_string
+    "PYTHONUNBUFFERED"                      = "1"
     "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "false" # Artefakt enthaelt vorgebaute Linux-Wheels
     "ENABLE_ORYX_BUILD"                     = "false"
     "WEBSITE_RUN_FROM_PACKAGE"              = "1" # Zip wird gemountet statt entpackt: spart F1-CPU-Minuten beim Deploy
