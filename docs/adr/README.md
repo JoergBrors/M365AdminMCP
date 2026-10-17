@@ -24,7 +24,7 @@ Entscheidung → Code: [`../DESIGN-DECISION-MAP.md`](../DESIGN-DECISION-MAP.md).
 | [0014](0014-doppelte-mcp-authentifizierung-api-key.md) | Zweiter Auth-Weg: `X-MCP-API-Key` | Akzeptiert (mit Risiko) |
 | [0015](0015-lokales-debugging-mit-inspector.md) | Lokales Debugging ohne Auth mit MCP Inspector | Akzeptiert |
 | [0016](0016-microsoft-health-intune-und-azure.md) | Microsoft Health: Intune/M365 (Graph) und Azure Service/Resource Health (ARM) | Akzeptiert |
-| [0017](0017-fastmcp-oauth-gateway.md) | FastMCP-OAuth-Gateway vor dem .NET-MCP-Server | Vorgeschlagen (G1/G2 erfüllt, G3–G7 offen) |
+| [0017](0017-fastmcp-oauth-gateway.md) | FastMCP-OAuth-Gateway vor dem .NET-MCP-Server | Akzeptiert für Dev, mit offenen Gates (G6 Netzwerkisolation, G7 Kosten) |
 
 Alle ADRs wurden **rückwirkend** aus dem Code und der bestehenden Doku abgeleitet (Datum der Dokumentation:
 2026-10-16). Wo die ursprüngliche Motivation nur aus Code-Kommentaren stammt, steht das im Kontext.
