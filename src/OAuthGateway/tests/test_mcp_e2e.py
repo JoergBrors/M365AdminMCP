@@ -108,3 +108,15 @@ async def test_debug_flag_exposes_only_error_chain(gw, monkeypatch):
         with pytest.raises(ToolError) as e:
             await c.call_tool("boom", {})
     assert tok["access_token"] not in str(e.value)
+
+
+async def test_reserved_meta_is_not_forwarded_to_backend(gw, backend):
+    """Regression (live): the .NET backend rejects `io.modelcontextprotocol/logLevel` on tools/call."""
+    _, tok = get_token(gw)
+    backend.seen.clear()
+    async with Client(f"{gw.url}/mcp", auth=tok["access_token"]) as c:
+        await c.call_tool("whoami", {})
+    calls = [meta for method, meta in backend.seen if method == "tools/call"]
+    assert calls, "backend saw no tools/call"
+    for meta in calls:
+        assert not [k for k in meta if k.startswith("io.modelcontextprotocol/")], meta

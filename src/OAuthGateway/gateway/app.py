@@ -22,12 +22,24 @@ _SENSITIVE_PARAMS = ("code", "state", "session_state", "code_challenge", "txn_id
 _SENSITIVE_QUERY = re.compile(r"([?&](?:" + "|".join(_SENSITIVE_PARAMS) + r")=)[^&\s\"]*")
 
 
+def _mask(text: str) -> str:
+    return _SENSITIVE_QUERY.sub(lambda m: m.group(1) + "***", text)
+
+
 class MaskSensitiveQuery(logging.Filter):
-    """uvicorn's access log prints the full request URL; mask OAuth codes, state and tokens before they are written."""
+    """uvicorn's access log prints the full request URL; mask OAuth codes, state and tokens before they are written.
+
+    uvicorn's AccessFormatter unpacks `record.args` as (client, method, path, http_version, status); that tuple shape must be
+    preserved, otherwise every access line fails with a logging error. Only the path element is rewritten.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.msg = _SENSITIVE_QUERY.sub(lambda m: m.group(1) + "***", record.getMessage())
-        record.args = ()
+        args = record.args
+        if isinstance(args, tuple) and len(args) == 5 and isinstance(args[2], str):
+            record.args = (*args[:2], _mask(args[2]), *args[3:])
+        else:
+            record.msg = _mask(record.getMessage())
+            record.args = ()
         return True
 
 
