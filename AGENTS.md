@@ -10,7 +10,8 @@ Service via Terraform. `main` = geschützter Branch, nur PR-Merge löst Deploy a
 
 ```
 src/ApiServer/   -> geschützte Web-API (Entra ID Auth), ruft Microsoft Graph auf
-src/McpServer/   -> MCP-Server (Streamable HTTP, /mcp), ruft ApiServer + direkt Graph auf
+src/McpServer/   -> MCP-Server (Streamable HTTP, /mcp), ruft NUR den ApiServer auf (keine Graph-Rechte, ADR-0002)
+src/OAuthGateway/-> Python-FastMCP-OAuth-Gateway (optional, enable_gateway; ADR-0017 vorgeschlagen), Tests: cd src/OAuthGateway && pytest tests
 terraform/       -> EINZIGER Deployment-Weg (Azure-Ressourcen + Entra-ID-Objekte im selben State)
 infra/           -> LEGACY Bicep, NICHT im CI verdrahtet, nicht anfassen/nicht als Vorbild nehmen
 scripts/         -> PowerShell 7 (.ps1), Connect-Azure.ps1 wird von allen anderen automatisch aufgerufen
@@ -68,6 +69,9 @@ gh pr create --base main
 - [`docs/microsoft-health/`](docs/microsoft-health/01-existing-architecture.md) — Intune-/Azure-Health-Tools (ADR-0016): Berechtigungsmatrix, Terraform (`azure_health_subscription_ids`), Betrieb
 - [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) — Prompt-Vorlagen und Definition of Done
 - [`README.md`](README.md) — Setup, Ordnerstruktur, Branch-Workflow
+- [`docs/security/README.md`](docs/security/README.md) — Security-Doku, Findings, Entscheidungen (vor Änderungen an Auth/Berechtigungen lesen)
+- [`docs/adr/IMPLEMENTATION-AUDIT.md`](docs/adr/IMPLEMENTATION-AUDIT.md) — ADR vs. Code
+- [`docs/FASTMCP-GATEWAY-ARCHITECTURE.md`](docs/FASTMCP-GATEWAY-ARCHITECTURE.md), [`docs/FOUNDRY-OAUTH.md`](docs/FOUNDRY-OAUTH.md), [`docs/EXTENDING-MCP-PLATFORM.md`](docs/EXTENDING-MCP-PLATFORM.md), [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Auth-Flows (OBO/App-only), OAuth-Proxy-Details, vollständiger Tool-Katalog
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — jede Terraform-Ressource/jeder Output/jede Variable, CI/CD-Ablauf, CI-Berechtigungs-Bootstrap im Detail, Kosten
 - [`docs/ENTRA-ID-SETUP.md`](docs/ENTRA-ID-SETUP.md) — jede App-Registrierung/jedes Permission-Grant im Detail

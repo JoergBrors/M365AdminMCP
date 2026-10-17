@@ -282,4 +282,27 @@ public class GraphApiClientReportTests
 
         Assert.DoesNotContain("SUPERSECRETPRESIGNEDTOKEN", ex.Message);
     }
+
+    // ---------- Parametervalidierung (ADR-0008) ----------
+
+    [Fact]
+    public async Task Catalog_report_rejects_injected_date_before_any_graph_call()
+    {
+        var (client, graph, _, _) = Create((_, _) => Task.FromResult(Json()));
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.GetCatalogReportAsJsonAsync("getOffice365ActiveUserDetail", date: "2026-10-14)/../../users"));
+
+        Assert.Empty(graph.Requests);
+    }
+
+    [Fact]
+    public async Task Catalog_report_accepts_valid_date_and_puts_it_into_the_path()
+    {
+        var (client, graph, _, _) = Create((_, _) => Task.FromResult(Json()));
+
+        await client.GetCatalogReportAsJsonAsync("getOffice365ActiveUserDetail", date: "2026-10-14");
+
+        Assert.Contains("date=2026-10-14", Uri.UnescapeDataString(graph.Requests[0].RequestUri!.ToString()));
+    }
 }
