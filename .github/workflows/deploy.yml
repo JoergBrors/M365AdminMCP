@@ -50,7 +50,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Secret-freies Deployment-Artefakt bauen
-        run: ./build_artifact.sh dist/gateway.zip "${GITHUB_SHA}"
+        run: bash ./build_artifact.sh dist/gateway.zip "${GITHUB_SHA}"
       - uses: actions/upload-artifact@v4
         with:
           name: oauth-gateway-${{ github.sha }}
