@@ -10,8 +10,12 @@ without the trailing slash. This pure-ASGI wrapper rewrites exactly three places
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
+import urllib.parse as up
 
+log = logging.getLogger("gateway.issuer")
 _ISS_PARAM = re.compile(r"(iss=https%3A%2F%2F[^&%/]+)%2F(?=&|$)")
 
 
@@ -23,6 +27,21 @@ def _strip(value):
     if isinstance(value, dict):
         return {k: (_strip(v) if k in ("issuer", "authorization_servers") else v) for k, v in value.items()}
     return value
+
+
+def _log_redirect(path: str, location: str) -> None:
+    """Log where an OAuth redirect goes and which `iss` it carries - never code, state or other parameters."""
+    parts = up.urlparse(location)
+    query = up.parse_qs(parts.query)
+    if "iss" in query:
+        log.info("oauth redirect from=%s to=%s%s iss=%r params=%s", path, parts.netloc, parts.path, query["iss"][0],
+                 sorted(query))
+
+
+def _advertise_iss_param() -> bool:
+    """RFC 9207 flag in the AS metadata. Default true (secure). Set GATEWAY_ADVERTISE_ISS_PARAM=false only as a
+    documented workaround for client bugs (openai/codex#31573); it removes the client's mix-up check."""
+    return os.environ.get("GATEWAY_ADVERTISE_ISS_PARAM", "true").lower() != "false"
 
 
 def issuer_without_trailing_slash(app):
@@ -50,7 +69,10 @@ def issuer_without_trailing_slash(app):
                     return
                 body = state["body"]
                 try:
-                    body = json.dumps(_strip(json.loads(body)), separators=(",", ":")).encode()
+                    doc = _strip(json.loads(body))
+                    if isinstance(doc, dict) and "authorization_response_iss_parameter_supported" in doc                             and not _advertise_iss_param():
+                        doc["authorization_response_iss_parameter_supported"] = False
+                    body = json.dumps(doc, separators=(",", ":")).encode()
                 except ValueError:
                     pass
                 headers = [(k, v) for k, v in state["start"].get("headers", []) if k.lower() != b"content-length"]
