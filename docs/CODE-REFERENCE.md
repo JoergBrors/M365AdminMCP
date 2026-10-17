@@ -11,7 +11,7 @@ LLM-Client (ChatGPT | Claude | Copilot Studio | Inspector)
    │  HTTPS, OAuth 2.0 Auth-Code + PKCE (Bearer-JWT)  oder  X-MCP-API-Key
    ▼
 McpServer  (/mcp, /authorize, /token, /.well-known/*, /healthz)           src/McpServer
-   │  HTTPS, Bearer-Token (App-only; Ausnahme: OBO bei GetTasksDelegated)
+   │  HTTPS, Bearer-Token (App-only)
    ▼
 ApiServer  (/api/tasks, /api/m365/*, /healthz, /swagger nur Development)  src/ApiServer
    │  HTTPS, Graph-Token (Managed Identity | Client Credentials)
@@ -70,7 +70,6 @@ Jede Klasse: `[McpServerToolType]`, Konstruktor-Injektion, Methoden `[McpServerT
 | | `GetAdoptionReport` | `GET /api/m365/reports/{reportName}` | `reportName`, `period?`, `date?`, `serviceArea?`, `appId?` |
 | `MicrosoftHealthTools` | `intune_service_health`, `intune_service_incidents`, `microsoft_service_messages`, `azure_service_health`, `azure_resource_health`, `azure_subscription_resource_health`, `microsoft_health_summary` | `GET /api/microsoft-health/*` | siehe `docs/microsoft-health/02-implementation.md` (ADR-0016) |
 | `TasksTool` | `GetTasksAppOnly` | `GET /api/tasks` | – |
-| | `GetTasksDelegated` | `GET /api/tasks` (OBO-Token) | `incomingUserAccessToken` |
 
 Neues Tool: Klasse anlegen + in `Program.cs` mit `.WithTools<…>()` registrieren; ApiServer-Endpoint zuerst bauen (Abschnitt 3).
 
@@ -147,7 +146,7 @@ Namenskonventionen: Apps `api-server-<env>`, `mcp-server-<env>`, Identifier-URIs
 ## 7. Bekannte Lücken / technische Schuld (Backlog-Kandidaten)
 1. `date`/`serviceArea`/`appId` nicht validiert (Pfad-Injection in Graph-URL) – ADR-0008.
 2. Keine nutzerbezogene Autorisierung; Policy-Name `TasksReadWrite` irreführend – ADR-0006.
-3. `GetTasksDelegated` nimmt Token als LLM-Parameter – ADR-0006.
+3. ~~`GetTasksDelegated` nimmt Token als LLM-Parameter~~ – Tool entfernt (ADR-0006, Aktualisierung 2026-10-17).
 4. API-Key-Vergleich nicht zeitkonstant – ADR-0014.
 5. Kein Paging (`@odata.nextLink`) und kein Größenlimit für Antworten – ADR-0010.
 6. `GetMcpScope`/`GetExternalBaseUrl`/`SetNoStoreHeaders` zweifach vorhanden.

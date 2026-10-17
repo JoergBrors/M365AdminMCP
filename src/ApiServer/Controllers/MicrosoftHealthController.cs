@@ -13,7 +13,7 @@ namespace ApiServer.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/microsoft-health")]
-[Authorize(Policy = PolicyNames.TasksReadWrite)]
+[Authorize(Policy = PolicyNames.DataAccess)]
 public class MicrosoftHealthController : ControllerBase
 {
     private readonly MicrosoftServiceHealthClient _graph;

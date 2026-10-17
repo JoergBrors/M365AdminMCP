@@ -17,7 +17,7 @@ Priorität P0–P3, Aufwand S/M/L (Schätzung, nicht gemessen). Abhängigkeiten 
 |---|---|---|---|
 | Rate Limits, Request-Limits, HSTS (Q-SEC-4) | P1 | M | **umgesetzt**; Kompatibilität mit echten Clients und Live-Retest offen |
 | Autorisierungsmodell und Policies je Datenbereich (Q-AUTH-1, Q-API-1) | P1 | L | Entscheidung D-1; Migration additiv, Clients nicht brechen |
-| `GetTasksDelegated` entfernen (Q-AUTH-2), API-Key abschaffen (Q-SEC-3) | P1/P2 | S | Entscheidung |
+| ~~`GetTasksDelegated` entfernen~~ erledigt; API-Key abschaffen (Q-SEC-3) | P2 | S | Entscheidung |
 | State-Account-RBAC prüfen (Q-SEC-5) | P1 | S | Zugriff |
 | SAST, IaC-Scanner, SBOM in CI (Q-TF-1) | P2 | M | Rauschen anfangs |
 | Pentest-Vorbereitung abschließen, Freigabe einholen | P2 | M | Eigentümer |

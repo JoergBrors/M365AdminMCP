@@ -62,7 +62,7 @@ Fünf `[McpServerToolType]`-Klassen, registriert in `Program.cs` über `.AddMcpS
 
 | Klasse | Tool-Methoden | Zweck |
 |---|---|---|
-| `TasksTool` | `GetTasksAppOnly()`, `GetTasksDelegated(incomingUserAccessToken)` | Demo-/Referenz-Endpoint für beide Auth-Flows (App-only vs. delegated/OBO) |
+| `TasksTool` | `GetTasksAppOnly()` | Demo-/Referenz-Endpoint (App-only). `GetTasksDelegated` wurde entfernt (D-2) |
 | `M365StatusTool` | `GetServiceHealthOverview()`, `GetServiceHealthDetail(serviceHealthId, ...)`, `GetDegradedServiceHealthDetails()`, `GetServiceHealthIssues()` | Office 365 Service Health (tenant-weit, app-only) |
 | `M365MessagesTool` | `GetMessageCenterMessages(odataFilter?)` | Message-Center-Nachrichten (tenant-weit, app-only) |
 | `M365AdoptionTool` | `GetOffice365ActiveUserDetail(period?)`, `GetM365AppUserDetail(period?)` | Die zwei am häufigsten gebrauchten Adoption-Reports als eigene, stark-typisierte Tools |

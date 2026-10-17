@@ -5,7 +5,7 @@ Status je Maßnahme: ✅ vorhanden und belegt, ⚠️ teilweise, ❌ fehlt, ❓ 
 | Maßnahme | Status | Fundstelle / Befund |
 |---|---|---|
 | JWT-Validierung (Signatur, Issuer, Audience) | ✅ | `ApiServer/Program.cs:22-36`, `McpServer/Program.cs:44-57` (`ValidAudiences` = App-ID und Identifier-URI) |
-| Autorisierung | ⚠️ | eine Policy `TasksReadWrite` für alle Controller (`ApiServer/Auth/PolicyNames.cs`, F-005) |
+| Autorisierung | ✅/⚠️ | `DataAccess` (nur App-Rolle) für Status/Messages/Reports/Health, `TasksReadWrite` nur Tasks (`ApiServer/Auth/ApiAuthorizationPolicies.cs`, 8 Tests). Offen: Zuweisungspflicht an der API-App (F-016 Teil 2), keine Trennung je Datenbereich (D-1) |
 | Eingabevalidierung Reports | ✅ | `ApiServer/Services/ReportParameterValidator.cs`: `date` = `yyyy-MM-dd`, `appId` = GUID, `serviceArea` = `[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}`; `period` gegen Whitelist (`ValidatePeriod`); unbekannte Reports abgewiesen; Tests `ReportParameterValidatorTests`, `GraphApiClientReportTests` |
 | Eingabevalidierung Health | ✅ | `McpServer/Utils/HealthInputValidator.cs` (per Compile-Link im API), Tests `HealthInputValidatorTests` |
 | SSRF-Schutz | ✅ | feste Hosts (`graph.microsoft.com`, `management.azure.com`), `nextLink` nur https auf diese Hosts, HTTP-Clients ohne Auto-Redirect für Health (`ApiServer/Program.cs:58-67`) |

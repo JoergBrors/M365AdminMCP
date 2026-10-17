@@ -9,7 +9,7 @@ namespace ApiServer.Controllers;
 
 [ApiController]
 [Route("api/m365/reports")]
-[Authorize(Policy = PolicyNames.TasksReadWrite)]
+[Authorize(Policy = PolicyNames.DataAccess)]
 public class M365ReportsController : ControllerBase
 {
     private readonly GraphApiClient _graphApiClient;

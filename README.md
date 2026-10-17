@@ -12,7 +12,7 @@ Produktiv deploybares Repo für:
 
 Stand 2026-10-17. Nur was tatsächlich umgesetzt und geprüft ist; Offenes steht ausdrücklich dabei.
 
-- **Python-OAuth-Gateway (FastMCP 4.1.0)** in `src/OAuthGateway/`, in Dev auf einem eigenen B1-Plan (`entramcp-dev-oauth-gateway`). Es übernimmt Discovery, Dynamic Client Registration, CIMD und Consent für MCP-Clients, meldet Nutzer über eine zentrale Entra-App an und reicht das Entra-Token an den unveränderten .NET-Server weiter. **Nachgewiesen:** Entra-Login, `tools/list` (18 Tools) und ein echter `tools/call` bis Microsoft Graph. **Offen:** Die ChatGPT-Anmeldung scheitert an der Client-Prüfung (Q-GW-1); Claude, Copilot Studio, Refresh und Re-Deploy sind nicht vollständig getestet. Details: [`docs/FASTMCP-GATEWAY-ARCHITECTURE.md`](docs/FASTMCP-GATEWAY-ARCHITECTURE.md), [`docs/FASTMCP-GATEWAY-TESTS.md`](docs/FASTMCP-GATEWAY-TESTS.md), [ADR-0017](docs/adr/0017-fastmcp-oauth-gateway.md) (Status: vorgeschlagen). Die .NET-OAuth-Fassade bleibt als Rollback aktiv ([`docs/FASTMCP-GATEWAY-ROLLBACK.md`](docs/FASTMCP-GATEWAY-ROLLBACK.md)).
+- **Python-OAuth-Gateway (FastMCP 4.1.0)** in `src/OAuthGateway/`, in Dev auf einem eigenen B1-Plan (`entramcp-dev-oauth-gateway`). Es übernimmt Discovery, Dynamic Client Registration, CIMD und Consent für MCP-Clients, meldet Nutzer über eine zentrale Entra-App an und reicht das Entra-Token an den unveränderten .NET-Server weiter. **Nachgewiesen:** Entra-Login, `tools/list` (damals 18 Tools; `GetTasksDelegated` ist inzwischen entfernt, jetzt 17) und ein echter `tools/call` bis Microsoft Graph. **Offen:** Die ChatGPT-Anmeldung scheitert an der Client-Prüfung (Q-GW-1); Claude, Copilot Studio, Refresh und Re-Deploy sind nicht vollständig getestet. Details: [`docs/FASTMCP-GATEWAY-ARCHITECTURE.md`](docs/FASTMCP-GATEWAY-ARCHITECTURE.md), [`docs/FASTMCP-GATEWAY-TESTS.md`](docs/FASTMCP-GATEWAY-TESTS.md), [ADR-0017](docs/adr/0017-fastmcp-oauth-gateway.md) (Status: vorgeschlagen). Die .NET-OAuth-Fassade bleibt als Rollback aktiv ([`docs/FASTMCP-GATEWAY-ROLLBACK.md`](docs/FASTMCP-GATEWAY-ROLLBACK.md)).
 - **Microsoft Foundry:** Self-Service-Anbindung per Skript `scripts/New-FoundryMcpClient.ps1` und Feld-für-Feld-Anleitung: [`docs/FOUNDRY-OAUTH.md`](docs/FOUNDRY-OAUTH.md) (nicht gegen ein echtes Foundry-Projekt getestet).
 - **Sicherheits-Härtung:** Parametervalidierung für Report-Aufrufe (`date`, `appId`, `serviceArea`), zeitkonstanter API-Key-Vergleich, Patch einer verwundbaren NuGet-Abhängigkeit, NuGet-Audit in CI, Rate Limiting, Request-Größenlimits und HSTS in allen drei Diensten (konfigurierbar, siehe [`docs/security/API-HARDENING.md`](docs/security/API-HARDENING.md)). Findings, Entscheidungen und offene Punkte: [`docs/security/`](docs/security/README.md), [`docs/adr/IMPLEMENTATION-AUDIT.md`](docs/adr/IMPLEMENTATION-AUDIT.md).
 - **CI:** zusätzlicher Job `gateway-ci` (Lint, 51 Python-Tests, pip-audit, Gitleaks, Paketbau mit Import-Prüfung), `terraform fmt/validate`, NuGet-Schwachstellenprüfung, Gateway-Deploy mit Smoke-Test über den vorhandenen OIDC-Login.
@@ -33,14 +33,14 @@ flowchart LR
 | Dienst | Verantwortung |
 |---|---|
 | `src/OAuthGateway` | OAuth-Discovery, DCR/CIMD, Consent, Token-Austausch; keine Graph-/ARM-/API-Rechte |
-| `src/McpServer` | MCP-Endpunkt `/mcp`, 18 Tools (nur lesend), OAuth-Fassade (ADR-0004) |
+| `src/McpServer` | MCP-Endpunkt `/mcp`, 17 Tools (nur lesend), OAuth-Fassade (ADR-0004) |
 | `src/ApiServer` | geschützte API, hält alle Graph-/ARM-Rechte (Managed Identity) |
 
-**Tool-Gruppen (18, live per `tools/list` bestätigt):** Tasks (Demo, app-only/delegated), Service Health (Overview, Detail, Issues, degradierte Services), Message Center, Adoption-/Usage-Reports (Katalog mit 92 Reports über `list_adoption_reports`/`get_adoption_report`, zwei Detail-Kurzbefehle), Intune-/Microsoft-Health und Azure Service/Resource Health.
+**Tool-Gruppen (17):** Tasks (Demo, app-only), Service Health (Overview, Detail, Issues, degradierte Services), Message Center, Adoption-/Usage-Reports (Katalog mit 92 Reports über `list_adoption_reports`/`get_adoption_report`, zwei Detail-Kurzbefehle), Intune-/Microsoft-Health und Azure Service/Resource Health.
 
 **Sicherheit:** siehe [`docs/security/`](docs/security/README.md). Wichtigste offene Punkte: keine nutzerbezogene Autorisierung (alle `Mcp.Access`-Nutzer sehen tenantweite Daten, F-004), Dienste öffentlich erreichbar (F-008).
 
-**Tests:** `dotnet test EntraMcpMvp.sln` (154 Tests, nur ApiServer), `cd src/OAuthGateway && pytest tests` (58 Tests, Mock-IdP), Live-Test `src/OAuthGateway/tools/gateway_e2e.py`. Bekannte Lücken: kein Testprojekt für den McpServer; keine echten Client-Tests außer dem FastMCP-Client.
+**Tests:** `dotnet test EntraMcpMvp.sln` (162 Tests, nur ApiServer), `cd src/OAuthGateway && pytest tests` (58 Tests, Mock-IdP), Live-Test `src/OAuthGateway/tools/gateway_e2e.py`. Bekannte Lücken: kein Testprojekt für den McpServer; keine echten Client-Tests außer dem FastMCP-Client.
 
 **Bekannte Einschränkungen:** Free-Tier-Kaltstart (F1) und Gateway-Containerstart von 2–3 Minuten (B1); ChatGPT-Anmeldung über das Gateway nicht funktionsfähig; MCP-Protokollstand `2025-11-25` (neuere Spezifikationen nicht nachgewiesen).
 
@@ -137,7 +137,7 @@ Voraussetzungen: Node.js ≥ 22.19.0, PowerShell 7, lokale `appsettings.Developm
 
 Konfiguration **„Debug API + MCP + Inspector“** wählen und **F5** drücken. Das startet nacheinander: Aufräumen eigener Alt-Prozesse → Build →
 gepinnten [MCP Inspector](https://github.com/modelcontextprotocol/inspector) v2 (`tools/mcp-inspector`, `127.0.0.1:6274`, zufälliger Sitzungstoken) → ApiServer + McpServer im Debugger.
-Sobald beide `/healthz` beantworten, öffnet sich der Browser und der Inspector verbindet sich selbst mit `http://localhost:5143/mcp`; die 18 Tools sind sofort sichtbar, Breakpoints in MCP und API greifen.
+Sobald beide `/healthz` beantworten, öffnet sich der Browser und der Inspector verbindet sich selbst mit `http://localhost:5143/mcp`; die 17 Tools sind sofort sichtbar, Breakpoints in MCP und API greifen.
 Beim Beenden der Debug-Session werden Inspector und Server-Prozesse dieses Repos beendet. Details, Sicherheit und Fehlerbilder: [`docs/DEBUGGING.md`](docs/DEBUGGING.md), [ADR-0015](docs/adr/0015-lokales-debugging-mit-inspector.md).
 
 `McpAuth__RequireAuthentication=false` gilt nur in dieser Launch-Konfiguration. Außerhalb von `Development` verweigert der Server den Start, und ohne Auth sind nur Loopback-Aufrufe

@@ -21,4 +21,4 @@ Bewertung: W = Eintrittswahrscheinlichkeit, A = Auswirkung (N/M/H). „Kontrolle
 | GitHub Actions | T/E: kompromittierter Workflow | N | H | OIDC, geschützter `main`, Plan/Apply-Schutz | CI-Principal ist sehr mächtig (RBAC Administrator auf Subscription) |
 | Terraform State | I: Secrets im State | M | H | Remote State | **F-013** (RBAC nicht geprüft) |
 | Key Vault | I: Fehlkonfiguration | N | H | RBAC, Purge Protection | gering |
-| Externe LLM-Clients | T/E: Prompt Injection steuert Tool-Aufrufe | M | M | alle 18 MCP-Tools lesen nur (die API-Route `POST /tasks` ist kein Tool); `GetTasksDelegated` nimmt ein Token entgegen (F-006) | siehe [MCP-SECURITY.md](MCP-SECURITY.md) |
+| Externe LLM-Clients | T/E: Prompt Injection steuert Tool-Aufrufe | M | M | alle 17 MCP-Tools lesen nur (die API-Route `POST /tasks` ist kein Tool); `GetTasksDelegated` (Token als Parameter) ist entfernt (F-006) | siehe [MCP-SECURITY.md](MCP-SECURITY.md) |

@@ -36,19 +36,7 @@ builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSch
     }.Where(audience => !string.IsNullOrWhiteSpace(audience));
 });
 
-builder.Services.AddAuthorization(options =>
-{
-    // Policy, die entweder eine App-Rolle (App-only) ODER einen Delegated Scope akzeptiert.
-    options.AddPolicy(PolicyNames.TasksReadWrite, policy =>
-        policy.RequireAssertion(context =>
-            context.User.Claims.Any(c =>
-                (c.Type == "roles" || c.Type == ClaimTypes.Role) &&
-                c.Value == "Tasks.ReadWrite.All") ||
-            context.User.Claims.Any(c =>
-                (c.Type == "scp" || c.Type == "http://schemas.microsoft.com/identity/claims/scope") &&
-                c.Value.Split(' ').Contains("Tasks.ReadWrite"))
-        ));
-});
+builder.Services.AddAuthorization(ApiAuthorizationPolicies.Configure); // Policies: Auth/ApiAuthorizationPolicies.cs (F-016)
 
 builder.Services.AddControllers();
 builder.Services.AddRequestHardening(builder.Configuration);

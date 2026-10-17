@@ -10,7 +10,7 @@ Stand 2026-10-17. Ausführen: `cd src/OAuthGateway && pip install -r requirement
 | Gate | Status | Beleg |
 |---|---|---|
 | F1 Plan provisionierbar | **erfüllt, aber unzureichend** | Ein sechster Linux-F1-Plan wurde angelegt. Die F1-CPU-Quota war nach Absturz und Redeploys erschöpft (`QuotaExceeded`); auf Entscheidung des Eigentümers läuft der Gateway-Plan jetzt als **B1** |
-| G1 Echtes Entra-Token → echter .NET-`/mcp` | **erfüllt** | `tools/list` (18 Tools) und `tools/call get_service_health_overview` (Graph-Daten) über das Gateway, `src/OAuthGateway/tools/gateway_e2e.py` |
+| G1 Echtes Entra-Token → echter .NET-`/mcp` | **erfüllt** | `tools/list` (damals 18 Tools, inzwischen 17 nach Entfernen von `GetTasksDelegated`) und `tools/call get_service_health_overview` (Graph-Daten) über das Gateway, `src/OAuthGateway/tools/gateway_e2e.py` |
 | G2 Auth Code + PKCE über Entra | **erfüllt** | Entra-Login im Browser, Consent, Token, Zugriff (vom Eigentümer bestätigt, Screenshot „Authentication successful“, Log `POST /token 200`) |
 | G3 DCR/Discovery mit echten Clients | **teilweise** | FastMCP-OAuth-Client: Discovery, DCR, PKCE ok. Grok: DCR, Login, Consent im Log sichtbar, `tools/*` mit Grok **nicht** geprüft. Copilot Studio, ChatGPT, Claude, M365 Copilot, Foundry **nicht getestet** |
 | G4 Transport/Streaming | **teilweise** | `initialize`, `tools/list`, `tools/call` ok. Lange SSE-Antworten, GET/DELETE, parallele Requests **nicht** geprüft |
