@@ -8,7 +8,7 @@
 | Web App Python | im Plan enthalten | – |
 | Storage Account (LRS, Standard) + Table `oauthstate` | nutzungsbasiert (Kapazität + Transaktionen) | bei dieser Datenmenge erfahrungsgemäß Cent-Bereich; **nicht verifiziert** |
 | Key Vault | bestehend; 3 weitere Secrets | Operationen nutzungsbasiert |
-| Application Insights / Log Analytics | bestehend; Tageslimit 1 GB (`log_analytics_daily_quota_gb`) | zusätzliche Telemetrie des Gateways |
+| Application Insights / Log Analytics | bestehend; Tageslimit 1 GB (`log_analytics_daily_quota_gb`) | derzeit **ohne Telemetrie** (kein SDK in .NET-Apps oder Gateway); Kosten entstehen erst, wenn Telemetrie angebunden wird |
 | Entra | kein Aufpreis | – |
 
 ## Alternativen (nur Bewertung, nicht umgesetzt)

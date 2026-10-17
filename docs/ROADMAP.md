@@ -35,7 +35,7 @@ Priorität P0–P3, Aufwand S/M/L (Schätzung, nicht gemessen). Abhängigkeiten 
 |---|---|---|---|
 | Produktionsgeeignete Pläne (Always On, Slots) | P2 | S | Kosten |
 | Netzwerkisolation (Private Endpoints/IP-Restriktion) (Q-AZ-1) | P2 | M/L | Kosten, Tarif |
-| Observability (App Insights/OpenTelemetry im Gateway, Alarme) | P2 | M | – |
+| Observability: Telemetrie anbinden (App Insights/OpenTelemetry in ApiServer, McpServer **und** Gateway – derzeit keine Daten in App Insights), Alarme, Aufbewahrung > 1 Tag | P2 | M | Kosten/Datenschutz (UPN im Log) |
 | Disaster Recovery (State, Secrets, Wiederanlauf) | P2 | M | – |
 | Externes Security-Audit und Pentest | P2 | M | Freigabe |
 | Last- und Skalierungstests | P3 | M | Freigabe |

@@ -7,7 +7,7 @@
 | Key Vault | RBAC-Modell, Purge Protection, Soft Delete 7 Tage; Apps als *Key Vault Secrets User* | `infra/main.tf:42-52,199-209` |
 | Storage (Gateway-State) | LRS, TLS 1.2, kein öffentlicher Blob-Zugriff; **Shared Keys aktiviert** (F-012); App greift per MI (*Storage Table Data Contributor*) zu | `modules/gateway/main.tf` |
 | TLS | `min_tls_version` nur am Storage gesetzt; App-Service-Mindest-TLS nicht explizit konfiguriert (❓) | – |
-| Logging | Container-Dateilogs (1 Tag, 35 MB) im Gateway, Application Insights + Log Analytics (Tageslimit 1 GB) für die .NET-Apps; Gateway sendet nichts an App Insights | `modules/gateway/main.tf`, `infra/main.tf` |
+| Logging | Container-Dateilogs (1 Tag, 35 MB) für Gateway, API und MCP. **Application Insights/Log Analytics sind angelegt (Tageslimit 1 GB), erhalten aber keine Telemetrie:** weder die .NET-Apps (kein `Microsoft.ApplicationInsights`/OpenTelemetry-Paket in den `.csproj`) noch das Gateway senden etwas; Abfrage 2026-10-17: 1 Request, 1 Trace insgesamt | `modules/gateway/main.tf`, `infra/main.tf` |
 | Azure RBAC | MI API: Health-Rolle nur auf freigegebenen Subscriptions (`azure_health_subscription_ids`) | ADR-0016 |
 | Defender/WAF/Front Door/APIM | nicht vorhanden | – |
 
