@@ -2,6 +2,8 @@
 
 Stand 2026-10-17. **Nicht mit einem echten Foundry-Projekt getestet** – die Feldwerte folgen der Microsoft-Doku (Quellen unten) und dem vorhandenen Copilot-Studio-Muster.
 
+> **Bestätigt vom Eigentümer (2026-10-17):** Foundry muss über OAuth-Passthrough gegen die **MCP-Adresse** (`…-mcp.azurewebsites.net/mcp`) laufen und nicht über das OAuth-Gateway; das Gateway bleibt für ChatGPT, Claude, Grok u. a.
+
 ## Empfehlung
 
 **Foundry spricht direkt mit Entra und dem .NET-MCP-Server, nicht mit dem FastMCP-Gateway.** Die App dafür legt der Anwender selbst per Skript an ([`scripts/New-FoundryMcpClient.ps1`](../scripts/New-FoundryMcpClient.ps1)); sie wird bewusst **nicht** über Terraform verwaltet.

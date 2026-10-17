@@ -22,3 +22,6 @@ APIM (kein OAuth-Server, Consumption: 30-s-Limit, keine MCP-Features), Keycloak,
 
 ## Änderungs-Leitfaden
 Akzeptieren erst nach bestandenen Gates G1–G5 (siehe `docs/FASTMCP-GATEWAY-TESTS.md`); bei Scheitern: Status „Verworfen“, `enable_gateway` bleibt `false`.
+
+## Aktualisierung 2026-10-17
+Gates G1 und G2 sind erfüllt, G3 ist für ChatGPT, Claude und Grok erfüllt (ChatGPT im Gateway-Log belegt, die anderen vom Eigentümer gemeldet). Offen: Copilot Studio/M365 Copilot (G3), Refresh und Re-Deploy (G5), Netzwerkisolation (G6), Kosten (G7). Foundry nutzt bewusst nicht das Gateway, sondern OAuth-Passthrough gegen die MCP-Adresse. **Der Status bleibt „Vorgeschlagen“, bis der Eigentümer über die Annahme für Dev entscheidet.**

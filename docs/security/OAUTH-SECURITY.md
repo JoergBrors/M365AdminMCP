@@ -24,7 +24,7 @@ Zwei Wege zum selben MCP-Server existieren bewusst parallel: (1) Clients über d
 | Codes/State im Zugriffsprotokoll maskiert | `MaskSensitiveQuery`, Test `test_access_log_masks_oauth_codes_state_and_tokens` |
 
 ## Nicht belegt / offen
-- **ChatGPT** bricht nach dem Rücksprung mit „issuer does not match the expected issuer“ ab, obwohl `iss` in Redirect (Browser-Beleg) und Metadaten übereinstimmen; Hypothese: Fehler im Codex-/ChatGPT-Client (openai/codex#31573). Mit `authorization_response_iss_parameter_supported=false` unverändert. Nicht gelöst.
+- ~~**ChatGPT** bricht nach dem Rücksprung~~ **Stand 2026-10-17 ~17:05: ChatGPT funktioniert** (Gateway-Log: `/token` 200, `/mcp` 200), ebenso Claude und Grok laut Eigentümer; die Ursache der früheren Ablehnung ist ungeklärt. Historie: ChatGPT brach nach dem Rücksprung mit „issuer does not match the expected issuer“ ab, obwohl `iss` in Redirect (Browser-Beleg) und Metadaten übereinstimmen; Hypothese: Fehler im Codex-/ChatGPT-Client (openai/codex#31573). Mit `authorization_response_iss_parameter_supported=false` unverändert. Nicht gelöst.
 - **Claude**: Anmeldung läuft bis zur Consent-Seite (CIMD); vollständiger Durchlauf nicht berichtet.
 - **Copilot Studio, M365 Copilot, Foundry** nicht gegen das Gateway getestet; Foundry nutzt den .NET-Weg ([FOUNDRY-OAUTH.md](../FOUNDRY-OAUTH.md)).
 - Token-Replay, Refresh-Rotation, Widerruf, Registrierungs-TTL: nicht geprüft.

@@ -6,7 +6,7 @@ Priorität P0–P3, Aufwand S/M/L (Schätzung, nicht gemessen). Abhängigkeiten 
 | Maßnahme | Prio | Aufwand | Abhängigkeit/Risiko |
 |---|---|---|---|
 | Claude und Copilot Studio gegen das Gateway testen (Q-GW-2/3) | P1 | S | echte Clients |
-| ChatGPT-Fehler bei OpenAI melden / neue Client-Version testen (Q-GW-1) | P2 | S | Fix liegt beim Client |
+| ~~ChatGPT-Fehler~~ ChatGPT funktioniert seit 2026-10-17 (Ursache ungeklärt, Q-GW-1); Copilot Studio und M365 Copilot testen | P2 | S | echte Clients |
 | Gateway-Startzeit messen und senken (Q-GW-4) | P2 | M | – |
 | Gateway-Logs nach Log Analytics (Q-AZ-2) | P2 | S | Kosten |
 | Testprojekt für den McpServer (Q-EXT-2) | P2 | M | – |
