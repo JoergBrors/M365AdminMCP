@@ -20,6 +20,7 @@
     <Compile Include="..\McpServer\Reporting\ReportCatalog.cs" Link="Reporting\ReportCatalog.cs" />
     <Compile Include="..\McpServer\Utils\CsvJsonConverter.cs" Link="Utils\CsvJsonConverter.cs" />
     <Compile Include="..\McpServer\Utils\HealthInputValidator.cs" Link="Utils\HealthInputValidator.cs" />
+    <Compile Include="..\McpServer\Hardening\RequestHardening.cs" Link="Hardening\RequestHardening.cs" />
   </ItemGroup>
 
   <ItemGroup>

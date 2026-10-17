@@ -11,10 +11,11 @@ Status je Maßnahme: ✅ vorhanden und belegt, ⚠️ teilweise, ❌ fehlt, ❓ 
 | SSRF-Schutz | ✅ | feste Hosts (`graph.microsoft.com`, `management.azure.com`), `nextLink` nur https auf diese Hosts, HTTP-Clients ohne Auto-Redirect für Health (`ApiServer/Program.cs:58-67`) |
 | Download-URLs vorautorisiert | ✅ | CSV-Download ohne Graph-Token, URL nicht geloggt (ADR-0010) |
 | HTTPS-Erzwingung | ⚠️ | `UseHttpsRedirection` nur im API und nur außerhalb Development (`Program.cs:155-157`); App Services setzen `https_only = true` (Terraform) |
-| HSTS | ❌ | `UseHsts` nicht gefunden |
+| HSTS | ✅ | `UseRequestHardening` → `UseHsts()` außerhalb Development (`McpServer/Hardening/RequestHardening.cs`); live nicht geprüft |
 | Forwarded Headers / Host-Validierung | ❓ | `UseForwardedHeaders` nicht gefunden; Metadaten nutzen `McpAuth:ExternalBaseUrl` statt Request-Host |
-| Rate Limiting | ❌ | nicht gefunden (F-009) |
-| Request-/Response-Größenlimits | ❌ | nicht gefunden; Reports unbegrenzt im Speicher (ADR-0010) |
+| Rate Limiting | ✅ | .NET: `AddRequestHardening`/`UseRequestHardening` (global, je Nutzer/IP, strenger für `/authorize` `/token` `/register`, `/healthz` ausgenommen), vor `UseAuthorization`, damit auch 401-Anfragen zählen; Gateway: `gateway/limits.py`. Konfig: `Hardening:*` bzw. `GATEWAY_LIMIT_*`. Tests: `RequestHardeningTests` (10), `test_limits.py` (7) |
+| Request-Größenlimit | ✅ | Kestrel `MaxRequestBodySize` 1 MiB (`Hardening:MaxRequestBodyBytes`), Gateway 64 KiB (`/mcp`: 1 MiB) |
+| Response-Größenlimit | ❌ | nicht umgesetzt; Reports unbegrenzt im Speicher (ADR-0010) |
 | CORS | ⚠️ | McpServer `AllowAnyOrigin` (`Program.cs:28-34`, F-007) |
 | Swagger/OpenAPI | ✅ | nur in Development (`ApiServer/Program.cs:112-131`) |
 | Fehlerbehandlung / ProblemDetails | ❓ | keine eigene Middleware gefunden (`UseExceptionHandler`/`AddProblemDetails` ohne Treffer); Verhalten in Production nicht getestet |
@@ -23,7 +24,7 @@ Status je Maßnahme: ✅ vorhanden und belegt, ⚠️ teilweise, ❌ fehlt, ❓ 
 | NuGet-Schwachstellen | ✅ | `System.Security.Cryptography.Pkcs` auf 10.0.13; CI-Schritt `dotnet list package --vulnerable` (F-002) |
 
 ## Nächste Schritte (nach Priorität)
-1. P1: Rate Limiter und Request-Limits in beiden .NET-Diensten; HSTS in Production.
+1. ~~P1: Rate Limiter, Request-Limits, HSTS~~ umgesetzt (Live-Retest und Last-Verhalten mit echten Clients offen).
 2. P1: getrennte Policies je Datenbereich (Migration siehe [SECURITY-DECISIONS.md](SECURITY-DECISIONS.md)).
 3. P2: Einheitliche `ProblemDetails`-Fehlerantworten ohne Interna; Test dazu.
 4. P2: Paging/Antwortgröße für Reports.

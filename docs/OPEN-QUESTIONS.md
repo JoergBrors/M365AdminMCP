@@ -12,7 +12,7 @@ Stand 2026-10-17. Entscheidungen, die Sicherheitsgrenzen, Kosten, öffentliche S
 | Q-AUTH-1 | Autorisierungsmodell | alle `Mcp.Access`-Nutzer sehen tenantweite Daten | 0006 | siehe SECURITY-DECISIONS D-1 | Rollen je Datenbereich | **hoch** | Eigentümer | P1 | Entscheidung offen |
 | Q-AUTH-2 | `GetTasksDelegated` behalten? | Token als LLM-Parameter; OBO in Prod nicht möglich | 0006 | entfernen / OBO serverseitig | entfernen | mittel | Eigentümer | P1 | offen |
 | Q-SEC-3 | `X-MCP-API-Key` abschaffen? | In Azure nicht gesetzt | 0014 | abschaffen / scopen | abschaffen | mittel | Eigentümer | P2 | offen |
-| Q-SEC-4 | Rate Limits und Request-Größen | fehlen in allen drei Diensten | 0010 | .NET `RateLimiter`, Gateway-Middleware | umsetzen | mittel | Entwicklung | P1 | offen |
+| Q-SEC-4 | Rate Limits und Request-Größen | umgesetzt (Defaults 120/min je Aufrufer, OAuth 30/min je IP, Gateway `/register` 10/min); Wirkung mit echten Clients und Last nicht gemessen | 0010 | Werte nach Betriebserfahrung anpassen | beobachten (429-Rate) | mittel | Entwicklung | P2 | umgesetzt, Retest offen |
 | Q-SEC-5 | State-Account RBAC prüfen | Secrets im State | 0001, 0007 | Review | prüfen | hoch | Eigentümer | P1 | offen |
 | Q-AZ-1 | Netzwerkisolation | alles öffentlich erreichbar | 0013 | IP-Restriktion; Private Endpoint (kostenpflichtig) | IP-Restriktion prüfen | mittel | Eigentümer (Kosten) | P2 | offen |
 | Q-AZ-2 | Gateway-Logs nach Log Analytics | Logs rotieren nach 1 Tag | – | Diagnoseeinstellung (kostenpflichtig nach Volumen) | einrichten | gering | Eigentümer (Kosten) | P2 | offen |
