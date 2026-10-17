@@ -101,6 +101,7 @@ resource "azurerm_linux_web_app" "gateway" {
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.application_insights_connection_string
     "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "false" # Artefakt enthaelt vorgebaute Linux-Wheels
     "ENABLE_ORYX_BUILD"                     = "false"
+    "WEBSITE_RUN_FROM_PACKAGE"              = "1" # Zip wird gemountet statt entpackt: spart F1-CPU-Minuten beim Deploy
     "WEBSITES_PORT"                         = "8000"
     "PYTHONPATH"                            = "/home/site/wwwroot/.python_packages/lib/site-packages"
 
