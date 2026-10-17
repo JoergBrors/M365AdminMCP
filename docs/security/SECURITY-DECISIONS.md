@@ -9,6 +9,8 @@
 | Gateway: Storage-Shared-Keys aktiv (akzeptiert) | Provider-Zugriff auf die Data Plane beim Anlegen (F-012) | 2026-10-17 |
 | Backend-Verbindung des Gateways auf Handshake-Protokoll festgelegt | .NET-Server lehnt moderne Per-Request-Metadaten ab | 2026-10-17 |
 
+| ADR-0017 (Gateway) akzeptiert für Dev, mit offenen Gates G6 (Netzwerkisolation) und G7 (Kosten) | Gates G1–G3 erfüllt; Produktion braucht neue Entscheidung | 2026-10-17 (Eigentümer) |
+
 ## Umgesetzt in dieser Arbeit (Branch `feature/security-hardening-docs`)
 Report-Parametervalidierung (F-001), NuGet-Patch (F-002), zeitkonstanter API-Key-Vergleich (F-003), CI-NuGet-Audit; danach Rate Limiting, Request-Limits und HSTS (D-5); Policy `DataAccess` (nur App-Rolle) und Entfernen von `GetTasksDelegated` (F-016, D-2); Zuweisungspflicht an der API-App (F-016); UserContext nur für Audit (D-1, siehe ADR-0006; live bestätigt am 2026-10-17: Audit-Zeile mit `oid`/`tid`/`upn` im API-Log); Datei-Logging für API und MCP (1 Tag).
 

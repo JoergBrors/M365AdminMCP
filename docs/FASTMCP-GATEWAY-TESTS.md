@@ -15,8 +15,8 @@ Stand 2026-10-17. Ausführen: `cd src/OAuthGateway && pip install -r requirement
 | G3 DCR/Discovery mit echten Clients | **erfüllt für ChatGPT, Claude, Grok** (Copilot Studio, M365 Copilot offen) | Gateway-Log 2026-10-17: nach der Weiterleitung zu `chatgpt.com/connector_platform_oauth_redirect` (17:07, 17:09) folgen `POST /token` 200 und `POST /mcp` 200; Claude und Grok vom Eigentümer als funktionierend gemeldet (nicht von mir gemessen). Foundry läuft bewusst **nicht** über das Gateway, sondern per OAuth-Passthrough direkt gegen die MCP-Adresse ([FOUNDRY-OAUTH.md](FOUNDRY-OAUTH.md)). Warum ChatGPT jetzt funktioniert, ist ungeklärt (Client-Fix von OpenAI oder Wirkung der Gateway-Änderungen; Flag `authorization_response_iss_parameter_supported` steht wieder auf dem Standard `true`) |
 | G4 Transport/Streaming | **teilweise** | `initialize`, `tools/list`, `tools/call` ok. Lange SSE-Antworten, GET/DELETE, parallele Requests **nicht** geprüft |
 | G5 Neustart/Refresh | **teilweise** | Eine DCR-Registrierung überstand `az webapp restart`. Refresh-Token und Re-Deploy **nicht** geprüft |
-| G6 Backend-Zugriff/Sicherheit | **teilweise** | Direktzugriff auf den .NET-`/mcp` bleibt möglich, siehe [FASTMCP-GATEWAY-SECURITY.md](FASTMCP-GATEWAY-SECURITY.md) |
-| G7 Kosten | **offen** | B1-Preis nicht verifiziert; in Azure Cost Management beobachten |
+| G6 Backend-Zugriff/Sicherheit | **offen** (Eigentümer 2026-10-17: bleibt offen) | Direktzugriff auf den .NET-`/mcp` und die API über öffentliche Hostnamen bleibt möglich; F-008. Maßnahmen siehe [SECURITY-FINDINGS.md](security/SECURITY-FINDINGS.md) (F-008, F-016) |
+| G7 Kosten | **offen** (Eigentümer 2026-10-17: bleibt offen) | B1-Preis nicht verifiziert; nach einer Woche in Azure Cost Management ablesen ([FASTMCP-GATEWAY-COSTS.md](FASTMCP-GATEWAY-COSTS.md)) |
 
 ## Lehren aus dem Live-Test (jeweils mit Regressionstest)
 1. `aiohttp` fehlte im Lockfile (Container-Absturz beim Start) – Azure-Tables-Pfad wird jetzt getestet.
