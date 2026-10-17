@@ -3,10 +3,10 @@
 ## Schnelle PR-Checks (laufen in jedem PR, `.github/workflows/deploy.yml`)
 | Job/Schritt | Prüft | Stand |
 |---|---|---|
-| `build`: `dotnet build` + `dotnet test` | 144 Tests (ApiServer) | grün |
+| `build`: `dotnet build` + `dotnet test` | 154 Tests (ApiServer) | grün |
 | `build`: NuGet-Audit | `dotnet list package --vulnerable --include-transitive`, bricht bei Treffern ab | neu, lokal grün nach F-002 |
 | `gateway-ci`: `ruff` | Lint Gateway | grün |
-| `gateway-ci`: `pytest` | 51 Tests: OAuth-Flow, DCR, Consent, PKCE, Redirect, Konfiguration, Logging, Issuer | grün |
+| `gateway-ci`: `pytest` | 58 Tests: OAuth-Flow, Limits, DCR, Consent, PKCE, Redirect, Konfiguration, Logging, Issuer | grün |
 | `gateway-ci`: `pip-audit` | bekannte Schwachstellen in Python-Abhängigkeiten | grün |
 | `gateway-ci`: Gitleaks | Secrets (Test-Fixtures per `.gitleaks.toml` ausgenommen) | grün |
 | `gateway-ci`: Paketbau + Import in leerer Umgebung | fehlende Module/Pakete | grün |

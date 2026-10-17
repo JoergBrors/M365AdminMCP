@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 using ApiServer.Auth;
+using McpServer.Hardening;
 using ApiServer.Health;
 using ApiServer.Services;
 using Microsoft.Extensions.Options;
@@ -50,6 +51,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddRequestHardening(builder.Configuration);
+builder.WebHost.ConfigureRequestLimits(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<GraphAuthOptions>(builder.Configuration.GetSection("GraphAuth"));
 builder.Services.AddSingleton<GraphTokenService>();
@@ -157,6 +160,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 app.UseAuthentication();
+app.UseRequestHardening(); // vor UseAuthorization, damit auch 401-Anfragen limitiert werden
 app.UseAuthorization();
 
 app.MapControllers();

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 
 from fastmcp import FastMCP
@@ -12,6 +13,7 @@ from starlette.responses import JSONResponse
 
 from .config import GatewayConfig, load_config
 from .issuer import issuer_without_trailing_slash
+from .limits import request_limits
 from .server import build_proxy
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -84,7 +86,7 @@ def create_app(cfg: GatewayConfig | None = None):
 
     log.info("gateway configured: public=%s backend_host=%s storage=%s", cfg.public_url, cfg.backend_host,
              "azure-tables" if cfg.storage_account else "memory")
-    return issuer_without_trailing_slash(mcp.http_app(path="/mcp"))
+    return request_limits(issuer_without_trailing_slash(mcp.http_app(path="/mcp")), os.environ)
 
 
 def _lazy():

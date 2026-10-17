@@ -10,7 +10,7 @@
 | Backend-Verbindung des Gateways auf Handshake-Protokoll festgelegt | .NET-Server lehnt moderne Per-Request-Metadaten ab | 2026-10-17 |
 
 ## Umgesetzt in dieser Arbeit (Branch `feature/security-hardening-docs`)
-Report-Parametervalidierung (F-001), NuGet-Patch (F-002), zeitkonstanter API-Key-Vergleich (F-003), CI-NuGet-Audit.
+Report-Parametervalidierung (F-001), NuGet-Patch (F-002), zeitkonstanter API-Key-Vergleich (F-003), CI-NuGet-Audit; danach Rate Limiting, Request-Limits und HSTS (D-5).
 
 ## Benötigen eine ausdrückliche Freigabe (nicht still entschieden)
 | ID | Entscheidung | Optionen | Empfehlung |
@@ -19,5 +19,5 @@ Report-Parametervalidierung (F-001), NuGet-Patch (F-002), zeitkonstanter API-Key
 | D-2 | `GetTasksDelegated` (F-006) | entfernen / Token nur serverseitig (OBO, benötigt Secret statt MI) | entfernen, solange kein Task-Anwendungsfall besteht |
 | D-3 | Netzwerkisolation (F-008) | IP-Restriktion auf Gateway-Ausgang; Private Endpoint (kostenpflichtig) | IP-Restriktion prüfen, bevor Geld ausgegeben wird |
 | D-4 | `X-MCP-API-Key` (ADR-0014) | abschaffen / pro Client scopen | abschaffen (in Azure ohnehin ungenutzt) |
-| D-5 | Rate Limiting / Limits (F-009, F-011) | in-app (.NET `RateLimiter`, Gateway-Middleware) | umsetzen (P1) |
+| D-5 | Rate Limiting / Limits (F-009, F-011) | in-app (.NET `RateLimiter`, Gateway-Middleware) | **umgesetzt** (Branch `feature/request-hardening`); Defaults bewusst großzügig, per Konfiguration anpassbar oder abschaltbar (`Hardening:Enabled=false`, `GATEWAY_LIMITS_ENABLED=false`) |
 | D-6 | Zuständigkeit OAuth (Fassade vs. Gateway) | pro Client genau ein Weg | Q-ARCH-1 |

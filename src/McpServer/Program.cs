@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 using McpServer.Auth;
+using McpServer.Hardening;
 using McpServer.Services;
 using McpServer.Tools;
 using System.Net;
@@ -23,6 +24,8 @@ builder.Services.AddSingleton<ApiTokenService>();
 builder.Services.AddSingleton<ApiServerClient>();
 builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
+builder.Services.AddRequestHardening(builder.Configuration);
+builder.WebHost.ConfigureRequestLimits(builder.Configuration);
 
 // Manche MCP-Clients (u.a. Copilot Studios "Dynamisch mit Ermittlung") fuehren die OAuth-
 // Discovery browserseitig aus dem Maker-Portal heraus aus - ohne CORS scheitert der Preflight
@@ -166,7 +169,12 @@ if (requireMcpAuthentication)
 
         await next();
     });
+    app.UseRequestHardening(); // vor UseAuthorization, damit auch 401-Anfragen limitiert werden
     app.UseAuthorization();
+}
+else
+{
+    app.UseRequestHardening();
 }
 
 MapOAuthProtectedResourceMetadata(app);
