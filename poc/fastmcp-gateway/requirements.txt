@@ -1,6 +1,0 @@
-fastmcp==4.1.0
-pytest
-pytest-asyncio
-httpx
-pyjwt[crypto]
-uvicorn

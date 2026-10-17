@@ -69,6 +69,7 @@ gh pr create --base main
 - [`docs/microsoft-health/`](docs/microsoft-health/01-existing-architecture.md) — Intune-/Azure-Health-Tools (ADR-0016): Berechtigungsmatrix, Terraform (`azure_health_subscription_ids`), Betrieb
 - [`docs/PROMPTING-GUIDE.md`](docs/PROMPTING-GUIDE.md) — Prompt-Vorlagen und Definition of Done
 - [`README.md`](README.md) — Setup, Ordnerstruktur, Branch-Workflow
+- [`docs/STATUS.md`](docs/STATUS.md) — **Abschlussstand, Nachweise, offene Punkte (zuerst lesen)**
 - [`docs/security/README.md`](docs/security/README.md) — Security-Doku, Findings, Entscheidungen (vor Änderungen an Auth/Berechtigungen lesen)
 - [`docs/adr/IMPLEMENTATION-AUDIT.md`](docs/adr/IMPLEMENTATION-AUDIT.md) — ADR vs. Code
 - [`docs/FASTMCP-GATEWAY-ARCHITECTURE.md`](docs/FASTMCP-GATEWAY-ARCHITECTURE.md), [`docs/FOUNDRY-OAUTH.md`](docs/FOUNDRY-OAUTH.md), [`docs/EXTENDING-MCP-PLATFORM.md`](docs/EXTENDING-MCP-PLATFORM.md), [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md)

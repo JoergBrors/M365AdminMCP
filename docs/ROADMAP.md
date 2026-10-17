@@ -1,5 +1,7 @@
 # Roadmap
 
+Aktueller Stand und offene Punkte: [STATUS.md](STATUS.md).
+
 Priorität P0–P3, Aufwand S/M/L (Schätzung, nicht gemessen). Abhängigkeiten in Klammern.
 
 ## Phase 1 – Stabilisierung

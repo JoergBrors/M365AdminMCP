@@ -4,7 +4,7 @@ Stand 2026-10-17. Ausführen: `cd src/OAuthGateway && pip install -r requirement
 
 ## Was die Tests prüfen
 `tests/harness.py` startet einen Mock-IdP (Entra-Ersatz), ein Python-Backend mit denselben JWT-Regeln wie der .NET-Server (Stub!) und das Gateway. Abgedeckt: Discovery, DCR (getrennte Client-IDs, kein Secret), Consent/CSRF/Browser-Bindung, feste Upstream-Callback, PKCE, Redirect-Manipulation, `initialize`/`tools/list`/`tools/call`, Fehlerweitergabe, Abbruch (Client-Timeout, Gateway bleibt gesund), PUT/PATCH → 404/405, Konfigurationsvalidierung, Health-Endpunkte, Secret-freie Logs.
-`poc/fastmcp-gateway/tools/dotnet_leg.py`: Versuch gegen den echten .NET-Server; offline nicht erfolgreich (Microsoft.Identity.Web verlangt HTTPS-Metadaten und Microsoft-Issuer; keine Aufweichung vorgenommen).
+`src/OAuthGateway/tools/dotnet_leg.py`: Versuch gegen den echten .NET-Server; offline nicht erfolgreich (Microsoft.Identity.Web verlangt HTTPS-Metadaten und Microsoft-Issuer; keine Aufweichung vorgenommen).
 
 ## Gate-Status (Stand 2026-10-17, Dev, Gateway auf B1)
 | Gate | Status | Beleg |
