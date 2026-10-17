@@ -1,0 +1,4 @@
+fastmcp==4.1.0
+py-key-value-aio[azure-tables]==0.4.6
+azure-identity
+uvicorn

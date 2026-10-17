@@ -22,8 +22,43 @@ jobs:
       - run: dotnet build EntraMcpMvp.sln
       - run: dotnet test EntraMcpMvp.sln --no-build
 
+  gateway-ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/OAuthGateway
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            src/OAuthGateway/requirements.txt
+            src/OAuthGateway/requirements-dev.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint
+        run: ruff check gateway
+      - name: Unit-, OAuth-Security- und MCP-Integrationstests
+        run: pytest tests -q
+      - name: Dependency-Scan (bekannte Schwachstellen)
+        run: pip-audit -r requirements.txt
+      - name: Secret-Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Secret-freies Deployment-Artefakt bauen
+        run: ./build_artifact.sh dist/gateway.zip "${GITHUB_SHA}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oauth-gateway-${{ github.sha }}
+          path: src/OAuthGateway/dist/gateway.zip
+          if-no-files-found: error
+
   terraform-plan:
-    needs: build
+    needs: [build, gateway-ci]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     env:
@@ -42,6 +77,11 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Terraform fmt und validate
+        run: |
+          terraform -chdir=terraform fmt -recursive -check
+          terraform -chdir=terraform init -backend=false -input=false
+          terraform -chdir=terraform validate
       - name: Terraform Plan (dev)
         shell: pwsh
         run: ./scripts/Invoke-TerraformPlan.ps1 -Environment dev
@@ -63,7 +103,7 @@ jobs:
             });
 
   deploy-dev:
-    needs: build
+    needs: [build, gateway-ci]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
@@ -127,6 +167,49 @@ jobs:
         with:
           app-name: ${{ env.MCP_APP_NAME }}
           package: publish/mcp
+
+      # Gateway wird nur deployt, wenn enable_gateway=true (Terraform-Output gateway_app_name nicht null).
+      # Auth: bestehender azure/login OIDC-Kontext; kein Publish-Profile, kein langlebiges Secret.
+      - name: Gateway-Ziel aus Terraform lesen
+        id: gw
+        shell: pwsh
+        run: |
+          $o = terraform -chdir=terraform output -json | ConvertFrom-Json
+          $name = $o.gateway_app_name.value
+          if ($name) {
+            if ($name -notlike '*-oauth-gateway') { throw "Ungueltiger Gateway App Name: $name" }
+            "enabled=true" >> $env:GITHUB_OUTPUT
+            "app_name=$name" >> $env:GITHUB_OUTPUT
+          } else {
+            "enabled=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Gateway-Artefakt laden
+        if: steps.gw.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: oauth-gateway-${{ github.sha }}
+          path: gateway-artifact
+
+      - name: Deploy Gateway (Python Code-Deployment, kein Container)
+        if: steps.gw.outputs.enabled == 'true'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ steps.gw.outputs.app_name }}
+          package: gateway-artifact/gateway.zip
+
+      - name: Gateway Smoke-Test
+        if: steps.gw.outputs.enabled == 'true'
+        run: |
+          url="https://${{ steps.gw.outputs.app_name }}.azurewebsites.net"
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$url/healthz" || true)
+            [ "$code" = "200" ] && break; sleep 20
+          done
+          [ "$code" = "200" ] || { echo "Gateway /healthz lieferte $code"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$url/mcp" -H 'Content-Type: application/json' -d '{}')
+          [ "$code" = "401" ] || { echo "Erwartet 401 ohne Token, erhalten $code"; exit 1; }
+          curl -sf "$url/.well-known/oauth-authorization-server" | grep -q "registration_endpoint"
 
       - name: Deployment Ergebnis
         run: |
