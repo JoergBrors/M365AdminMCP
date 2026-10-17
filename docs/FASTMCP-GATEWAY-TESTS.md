@@ -6,17 +6,24 @@ Stand 2026-10-17. Ausführen: `cd src/OAuthGateway && pip install -r requirement
 `tests/harness.py` startet einen Mock-IdP (Entra-Ersatz), ein Python-Backend mit denselben JWT-Regeln wie der .NET-Server (Stub!) und das Gateway. Abgedeckt: Discovery, DCR (getrennte Client-IDs, kein Secret), Consent/CSRF/Browser-Bindung, feste Upstream-Callback, PKCE, Redirect-Manipulation, `initialize`/`tools/list`/`tools/call`, Fehlerweitergabe, Abbruch (Client-Timeout, Gateway bleibt gesund), PUT/PATCH → 404/405, Konfigurationsvalidierung, Health-Endpunkte, Secret-freie Logs.
 `poc/fastmcp-gateway/tools/dotnet_leg.py`: Versuch gegen den echten .NET-Server; offline nicht erfolgreich (Microsoft.Identity.Web verlangt HTTPS-Metadaten und Microsoft-Issuer; keine Aufweichung vorgenommen).
 
-## Gate-Status
-| Gate | Status | Begründung |
+## Gate-Status (Stand 2026-10-17, Dev, Gateway auf B1)
+| Gate | Status | Beleg |
 |---|---|---|
-| F1 Plan provisionierbar | **offen** | lesend geprüft (siehe unten), tatsächliche Provisionierung nicht durchgeführt |
-| G1 Echtes Entra-Token → echter .NET-`/mcp` | **offen** | braucht deployte Gateway-App im Dev-Tenant (Freigabe) |
-| G2 Entra Auth-Code + PKCE über Gateway | **offen** | dito |
-| G3 DCR/Discovery mit Copilot Studio + ChatGPT/Claude | **offen** | keine echten Clients getestet |
-| G4 Transport/Streaming | **teilweise** | Basisfälle gegen Mock bestanden; lange SSE-Antworten, GET-Stream, DELETE (liefert 400 im stateless-Modus), Cold Start, parallele Requests **nicht** geprüft |
-| G5 Neustart/Refresh | **offen** | Azure-Tables-Store nicht gegen echten Storage getestet (kein Azurite/Account) |
-| G6 Backend-Zugriff/Sicherheit | **teilweise** | siehe [FASTMCP-GATEWAY-SECURITY.md](FASTMCP-GATEWAY-SECURITY.md); Direktzugriff bleibt offen |
-| G7 Kosten | **teilweise** | siehe [FASTMCP-GATEWAY-COSTS.md](FASTMCP-GATEWAY-COSTS.md) |
+| F1 Plan provisionierbar | **erfüllt, aber unzureichend** | Ein sechster Linux-F1-Plan wurde angelegt. Die F1-CPU-Quota war nach Absturz und Redeploys erschöpft (`QuotaExceeded`); auf Entscheidung des Eigentümers läuft der Gateway-Plan jetzt als **B1** |
+| G1 Echtes Entra-Token → echter .NET-`/mcp` | **erfüllt** | `tools/list` (18 Tools) und `tools/call get_service_health_overview` (Graph-Daten) über das Gateway, `src/OAuthGateway/tools/gateway_e2e.py` |
+| G2 Auth Code + PKCE über Entra | **erfüllt** | Entra-Login im Browser, Consent, Token, Zugriff (vom Eigentümer bestätigt, Screenshot „Authentication successful“, Log `POST /token 200`) |
+| G3 DCR/Discovery mit echten Clients | **teilweise** | FastMCP-OAuth-Client: Discovery, DCR, PKCE ok. Grok: DCR, Login, Consent im Log sichtbar, `tools/*` mit Grok **nicht** geprüft. Copilot Studio, ChatGPT, Claude, M365 Copilot, Foundry **nicht getestet** |
+| G4 Transport/Streaming | **teilweise** | `initialize`, `tools/list`, `tools/call` ok. Lange SSE-Antworten, GET/DELETE, parallele Requests **nicht** geprüft |
+| G5 Neustart/Refresh | **teilweise** | Eine DCR-Registrierung überstand `az webapp restart`. Refresh-Token und Re-Deploy **nicht** geprüft |
+| G6 Backend-Zugriff/Sicherheit | **teilweise** | Direktzugriff auf den .NET-`/mcp` bleibt möglich, siehe [FASTMCP-GATEWAY-SECURITY.md](FASTMCP-GATEWAY-SECURITY.md) |
+| G7 Kosten | **offen** | B1-Preis nicht verifiziert; in Azure Cost Management beobachten |
+
+## Lehren aus dem Live-Test (jeweils mit Regressionstest)
+1. `aiohttp` fehlte im Lockfile (Container-Absturz beim Start) – Azure-Tables-Pfad wird jetzt getestet.
+2. `AzureProvider` prüft als Audience die Gateway-App; Entra stellt das Token für die **MCP-App** aus – Audience wird auf MCP-App-GUID und -URI festgelegt (`MCP_APP_CLIENT_ID`).
+3. Der Proxy spiegelt das Protokoll des Clients zum Backend; der .NET-Server (2025-11-25) lehnt moderne Per-Request-Metadaten ab – die Backend-Verbindung ist auf `legacy` (Handshake) festgelegt.
+4. Ein Admin-Consent-Grant per Terraform scheiterte (CI-Principal ohne Graph-Recht); entfernt, Nutzer-Consent beim ersten Login.
+5. Der Start des Containers dauert ca. 140–170 s (auch auf B1). Für Clients mit kurzem Timeout ein reales Problem.
 
 **Echte Clients (Claude, ChatGPT, Copilot Studio, M365 Copilot, Foundry): nicht getestet. Es wird keine Kompatibilität behauptet.**
 
