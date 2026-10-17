@@ -22,6 +22,8 @@ module "entra_id" {
   chatgpt_mcp_redirect_uris = var.chatgpt_mcp_redirect_uris
   claude_mcp_redirect_uris  = var.claude_mcp_redirect_uris
   copilot_mcp_redirect_uris = var.copilot_mcp_redirect_uris
+  enable_gateway            = var.enable_gateway
+  gateway_redirect_uri      = "https://${local.name_prefix}-oauth-gateway.azurewebsites.net/auth/callback"
   api_swagger_redirect_uris = [
     "https://${local.name_prefix}-api.azurewebsites.net/swagger/oauth2-redirect.html",
     "https://localhost:7043/swagger/oauth2-redirect.html",
