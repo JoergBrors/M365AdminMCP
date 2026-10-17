@@ -1,0 +1,9 @@
+title = "M365AdminMCP"
+
+[extend]
+useDefault = true
+
+# Test fixtures only: dummy values for the mock IdP / config tests (no real credentials).
+[[allowlists]]
+description = "OAuthGateway test fixtures"
+paths = ['''src/OAuthGateway/tests/.*''', '''poc/fastmcp-gateway/tests/.*''']
