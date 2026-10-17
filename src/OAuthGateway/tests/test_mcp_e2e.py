@@ -89,3 +89,13 @@ async def test_backend_accepts_valid_token(idp, backend):
     t = idp.mint()
     r = httpx.post(backend.url, json=INIT, headers={**HDRS, "Authorization": f"Bearer {t}"})
     assert r.status_code == 200 and MCP_AUD
+
+
+async def test_backend_failure_is_logged_without_token(gw, caplog):
+    import logging
+    caplog.set_level(logging.INFO)
+    _, tok = get_token(gw)
+    async with Client(f"{gw.url}/mcp", auth=tok["access_token"]) as c:
+        with pytest.raises(ToolError):
+            await c.call_tool("boom", {})
+    assert tok["access_token"] not in caplog.text

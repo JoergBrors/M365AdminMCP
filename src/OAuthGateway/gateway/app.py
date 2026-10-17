@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 from .config import GatewayConfig, load_config
 from .server import build_proxy
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("gateway")
 
 

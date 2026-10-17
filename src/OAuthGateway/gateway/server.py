@@ -7,10 +7,13 @@ no shared secrets, no extra Graph/ARM permission.
 """
 from __future__ import annotations
 
+import logging
+
 import httpx2
 from fastmcp import FastMCP
 from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.server.dependencies import get_access_token
+from fastmcp.server.middleware import Middleware
 from fastmcp.server.providers.proxy import FastMCPProxy, ProxyClient
 
 
@@ -25,6 +28,25 @@ class _UpstreamBearer(httpx2.Auth):
         yield request
 
 
+log = logging.getLogger("gateway.proxy")
+
+
+class _ErrorLogging(Middleware):
+    """Log failures of proxied MCP requests (method + exception chain, never headers or tokens)."""
+
+    async def on_message(self, context, call_next):
+        try:
+            return await call_next(context)
+        except Exception as exc:
+            chain, e = [], exc
+            while e is not None and len(chain) < 6:
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                chain.append(f"{type(e).__name__}({status if status else str(e)[:200]})")
+                e = e.__cause__ or e.__context__
+            log.error("proxy request failed method=%s chain=%s", getattr(context, "method", "?"), " <- ".join(chain))
+            raise
+
+
 def build_proxy(backend_mcp_url: str, auth) -> FastMCP:
     def factory() -> ProxyClient:
         transport = StreamableHttpTransport(backend_mcp_url, auth=_UpstreamBearer())
@@ -32,4 +54,6 @@ def build_proxy(backend_mcp_url: str, auth) -> FastMCP:
 
     # forward_incoming_headers is irrelevant here: the transport sets Authorization itself,
     # and the incoming one is the FastMCP JWT which must never reach the backend.
-    return FastMCPProxy(client_factory=factory, name="m365-mcp-gateway", auth=auth)
+    proxy = FastMCPProxy(client_factory=factory, name="m365-mcp-gateway", auth=auth)
+    proxy.add_middleware(_ErrorLogging())
+    return proxy
