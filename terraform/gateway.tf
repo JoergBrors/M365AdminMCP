@@ -31,7 +31,7 @@ module "gateway" {
 # Die in Entra registrierte Callback-URL muss exakt zum tatsaechlichen Gateway-Hostnamen passen.
 check "gateway_callback_matches_hostname" {
   assert {
-    condition     = !var.enable_gateway || "https://${local.name_prefix}-oauth-gateway.azurewebsites.net" == module.gateway[0].gateway_public_url
+    condition     = !var.enable_gateway || "https://${local.name_prefix}-oauth-gateway.azurewebsites.net" == one(module.gateway[*].gateway_public_url)
     error_message = "Gateway-Redirect-URI in Entra weicht vom Gateway-Hostnamen ab."
   }
 }
