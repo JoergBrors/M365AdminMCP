@@ -59,6 +59,7 @@ def issuer_without_trailing_slash(app):
                     for k, v in headers:
                         if k.lower() == b"location":
                             v = _ISS_PARAM.sub(r"\1", v.decode("latin-1")).encode("latin-1")
+                            _log_redirect(scope["path"], v.decode("latin-1"))
                         new_headers.append((k, v))
                     return await send({**message, "headers": new_headers})
                 state["start"] = message  # hold back until the body is rewritten

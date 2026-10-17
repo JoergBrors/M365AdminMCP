@@ -148,3 +148,35 @@ def test_iss_param_flag_is_advertised_by_default_and_can_be_switched_off(monkeyp
     assert httpx.get(url).json()["authorization_response_iss_parameter_supported"] is True
     monkeypatch.setenv("GATEWAY_ADVERTISE_ISS_PARAM", "false")
     assert httpx.get(url).json()["authorization_response_iss_parameter_supported"] is False
+
+
+def test_redirects_are_logged_by_the_wrapper(caplog):
+    """Regression: the log function existed but was never called from the wrapper."""
+    import logging
+
+    caplog.set_level(logging.INFO)
+    app = create_app(load_config(GOOD))
+    port = free_port()
+    serve(app, port)
+    base = f"http://127.0.0.1:{port}"
+    reg = httpx.post(f"{base}/register", json={"redirect_uris": ["http://localhost:33418/cb"], "client_name": "t",
+                                               "token_endpoint_auth_method": "none"}).json()
+    httpx.get(f"{base}/authorize", params={
+        "response_type": "code", "client_id": reg["client_id"], "redirect_uri": "http://localhost:33418/cb",
+        "code_challenge": "x" * 43, "code_challenge_method": "S256", "state": "SECRETSTATE", "scope": "Bad.Scope"},
+        follow_redirects=False)
+    assert "oauth redirect" in caplog.text
+    assert "iss='https://gw.example.net'" in caplog.text
+    assert all("SECRETSTATE" not in r.getMessage() for r in caplog.records if r.name == "gateway.issuer")
+
+
+def test_access_log_masks_oauth_codes_state_and_tokens():
+    import logging
+
+    from gateway.app import MaskSensitiveQuery
+    rec = logging.LogRecord("uvicorn.access", logging.INFO, "", 0,
+                            '%s - "%s %s HTTP/%s" %d',
+                            ("1.2.3.4:5", "GET", "/auth/callback?code=SECRETCODE&state=SECRETSTATE&x=keep", "1.1", 302), None)
+    assert MaskSensitiveQuery().filter(rec)
+    out = rec.getMessage()
+    assert "SECRETCODE" not in out and "SECRETSTATE" not in out and "x=keep" in out and "code=***" in out
