@@ -31,3 +31,6 @@ Stand 2026-10-17. Ausführen: `cd src/OAuthGateway && pip install -r requirement
 2. G1: Entra-Login im Browser → Token über Gateway → `tools/list` am echten .NET; negativ: FastMCP-JWT direkt an .NET → 401.
 3. G2/G3: Claude, ChatGPT, Copilot Studio, M365 Copilot, Foundry jeweils: Discovery, DCR/CIMD, Consent, `initialize`, `tools/list`, `tools/call`, Refresh, Reconnect, Gateway-Neustart.
 4. G4/G5: lange Antworten, parallele Requests, Neustart und Re-Deploy mit bestehenden Registrierungen.
+
+## F1-Befund (2026-10-17)
+Nach dem ersten Deploy (Startabsturz durch fehlendes `aiohttp`, danach mehrere Redeploys eines 37-MB-Pakets mit ca. 8.700 Dateien) stand die Web App auf `QuotaExceeded` (`usageState: Exceeded`): Kudu/OneDeploy lieferte „Site Disabled (403)“, `/healthz` 403. Das ist das tägliche F1-CPU-Kontingent; der Zeitpunkt des Zurücksetzens wurde nicht verifiziert. Gegenmaßnahmen in diesem PR: `WEBSITE_RUN_FROM_PACKAGE=1` (kein Entpacken) und kleineres Paket (24 MB, ca. 5.400 Dateien, ohne Bytecode). Ob das für F1 reicht, ist **ungeprüft**; falls nicht, Hosting-NO-GO für F1 (kein automatischer Wechsel auf einen bezahlten Plan).

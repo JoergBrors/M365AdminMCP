@@ -13,6 +13,9 @@ grep -v 'sys_platform == "win32"' requirements.txt > "$STAGE/req.linux.txt"
   --platform manylinux_2_28_x86_64 --platform any --python-version 3.12 --implementation cp \
   --target "$STAGE/.python_packages/lib/site-packages" -r "$STAGE/req.linux.txt"
 rm -f "$STAGE/req.linux.txt"
+# smaller artifact: bytecode is regenerated at runtime and only inflates the zip (F1 quota / fewer files)
+find "$STAGE" -type d -name __pycache__ -prune -exec rm -rf {} +
+find "$STAGE" -name '*.pyc' -delete
 # secret scan of the artifact (fail closed)
 if grep -rIlE "(client_secret|BEGIN (RSA |EC )?PRIVATE KEY)\s*[:=]\s*['\"][^'\"]{8,}" "$STAGE/gateway" "$STAGE/VERSION"; then
   echo "secret-like content found in artifact" >&2; exit 1

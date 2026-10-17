@@ -2,6 +2,12 @@
 # an bestehenden Ressourcen. Reihenfolge ohne Zyklus: Hostname ist deterministisch (name_prefix-oauth-gateway),
 # daher kann die Entra-Redirect-URI vor der Web App feststehen; das Secret fliesst Entra -> Key Vault -> App Setting.
 
+variable "gateway_sku" {
+  description = "SKU des Gateway-Plans (F1 oder B1)"
+  type        = string
+  default     = "F1"
+}
+
 variable "enable_gateway" {
   description = "Aktiviert das FastMCP OAuth Gateway"
   type        = bool
@@ -26,6 +32,7 @@ module "gateway" {
   gateway_client_secret  = module.entra_id.gateway_client_secret
   mcp_app_identifier_uri = module.entra_id.mcp_app_identifier_uri
   backend_mcp_url        = "https://${module.infra.mcp_app_hostname}/mcp"
+  gateway_sku            = var.gateway_sku
 }
 
 # Die in Entra registrierte Callback-URL muss exakt zum tatsaechlichen Gateway-Hostnamen passen.
