@@ -15,7 +15,7 @@ public class M365StatusController : ControllerBase
 {
     private const string SizeHint =
         "Antwort zu gross. Fuer Issues search_service_health_issues (kompakt, mit Filtern/Pagination), get_service_health_issue und " +
-        "get_service_health_issue_content (vollstaendiger Inhalt in Teilen) verwenden.";
+        "get_service_health_issue_content (vollstaendiger Inhalt in Teilen) verwenden. Dieses Tool liest nur die erste Graph-Seite; vollstaendige Listen liefert die Suche.";
 
     private readonly GraphApiClient _graphApiClient;
     private readonly ServiceHealthIssueService _issues;

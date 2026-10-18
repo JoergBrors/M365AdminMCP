@@ -74,7 +74,45 @@ public class ServiceHealthIssueServiceTests
         Assert.InRange(returned, 1, 199);
         Assert.Equal(returned, root.GetProperty("value").GetArrayLength());
         Assert.Contains("nutze Suche", root.GetProperty("hint").GetString());
-        Assert.Equal("I0", root.GetProperty("availableIds")[0].GetString());
+        // omittedIds = IDs der NICHT enthaltenen Eintraege: kein Eintrag aus value, lueckenlos ab dem ersten ausgelassenen
+        var included = root.GetProperty("value").EnumerateArray().Select(e => e.GetProperty("id").GetString()).ToHashSet();
+        var omitted = root.GetProperty("omittedIds").EnumerateArray().Select(e => e.GetString()).ToArray();
+        Assert.DoesNotContain(omitted, id => included.Contains(id));
+        Assert.Equal($"I{returned}", omitted[0]);
+        Assert.Equal(Math.Min(200 - returned, ResponseSizeGuard.MaxOmittedIds), omitted.Length);
+        Assert.Equal(200 - returned > ResponseSizeGuard.MaxOmittedIds, root.GetProperty("omittedIdsTruncated").GetBoolean());
+        Assert.False(root.GetProperty("moreGraphPages").GetBoolean());
+    }
+
+    [Fact]
+    public void Guard_reports_every_omitted_id_up_to_the_cap_and_flags_the_rest()
+    {
+        var items = string.Join(",", Enumerable.Range(0, 130).Select(i => $"{{\"id\":\"I{i}\",\"body\":\"{new string('x', 1000)}\"}}"));
+        using var doc = Parse(ResponseSizeGuard.Enforce($"{{\"value\":[{items}]}}", 30_000, "s", "h"));
+        var root = doc.RootElement;
+        var returned = root.GetProperty("returnedItems").GetInt32();
+
+        Assert.InRange(returned, 1, 129);
+        var omitted = root.GetProperty("omittedIds").EnumerateArray().Select(e => e.GetString()).ToArray();
+        Assert.Equal(Enumerable.Range(returned, ResponseSizeGuard.MaxOmittedIds).Select(i => $"I{i}"), omitted);
+        Assert.True(root.GetProperty("omittedIdsTruncated").GetBoolean()); // 130 - returned > 50
+    }
+
+    [Fact]
+    public void Guard_flags_additional_graph_pages_instead_of_dropping_the_next_link_silently()
+    {
+        var items = string.Join(",", Enumerable.Range(0, 60).Select(i => $"{{\"id\":\"I{i}\",\"body\":\"{new string('x', 1000)}\"}}"));
+        var json = $"{{\"value\":[{items}],\"@odata.nextLink\":\"https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/issues?$skip=100\"}}";
+
+        var result = ResponseSizeGuard.Enforce(json, 20_000, "s", "h");
+
+        using var doc = Parse(result);
+        Assert.True(doc.RootElement.GetProperty("moreGraphPages").GetBoolean());
+        Assert.Contains("weitere Graph-Seiten", doc.RootElement.GetProperty("truncationReason").GetString());
+        Assert.DoesNotContain("skip=100", result); // der Link selbst wird nicht weitergereicht
+
+        using var plain = Parse(ResponseSizeGuard.Enforce($"{{\"value\":[{items}]}}", 20_000, "s", "h"));
+        Assert.False(plain.RootElement.GetProperty("moreGraphPages").GetBoolean());
     }
 
     [Fact]
@@ -98,7 +136,8 @@ public class ServiceHealthIssueServiceTests
         using (var doc = Parse(ResponseSizeGuard.Enforce(single, 5_000, "s", "h")))
         {
             Assert.Equal(0, doc.RootElement.GetProperty("returnedItems").GetInt32());
-            Assert.Equal("BIG", doc.RootElement.GetProperty("availableIds")[0].GetString());
+            Assert.Equal("BIG", doc.RootElement.GetProperty("omittedIds")[0].GetString());
+            Assert.False(doc.RootElement.GetProperty("omittedIdsTruncated").GetBoolean());
         }
 
         using var notCollection = Parse(ResponseSizeGuard.Enforce($"{{\"x\":\"{new string('a', 50_000)}\"}}", 5_000, "s", "h"));

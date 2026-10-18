@@ -24,7 +24,7 @@ Arbeitspaket, umgesetzt in PR #36 (Merge-Commit `897a14a`, **in Dev deployt**; G
 | Signaturschlüssel (Terraform, Key Vault) | `terraform/modules/infra/main.tf` (`random_password.continuation_signing_key`, `azurerm_key_vault_secret.continuation_signing_key`) |
 
 Bestehende Tool-Namen und -Parameter sind unverändert. Das Alt-Tool `get_service_health_issues` liefert bei zu großen Antworten statt des Fehlers eine
-markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `availableIds`, `hint`); die Inhalte bleiben über die drei neuen Tools erreichbar.
+markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `moreGraphPages`, `omittedIds`/`omittedIdsTruncated`, `hint`); die Inhalte bleiben über die drei neuen Tools erreichbar.
 
 ### Konfiguration (`ResponseLimits`, App Settings `ResponseLimits__…`)
 
@@ -47,7 +47,7 @@ markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `
 
 **Live verifiziert (Dev, 2026-10-18)**
 - Deployment: Lauf `39113383973` – `build`, `gateway-ci`, `deploy-dev` erfolgreich; Terraform Apply `2 added, 1 changed, 0 destroyed` (keine Löschung, keine Rollenänderung). Der ApiServer ist mit dem dedizierten Signaturschlüssel aus dem Key Vault gestartet (die Startvalidierung hätte sonst abgebrochen).
-- Legacy-Tool `get_service_health_issues` funktioniert mit aktivem Größenwächter. Der ursprüngliche Fehler `SSE stream failed: Server-sent event exceeded the 1048576 byte limit` tritt bei diesem zuvor reproduzierten Aufruf nicht mehr auf. Gemessen: ungekürzte Antwort **1 194 971 Bytes**; Ergebnis 55 von 100 Einträgen, `truncated=true`, `isPartial=true`, `limitBytes=700000`, 50 `availableIds` (Semantik siehe „Offene Befunde“).
+- Legacy-Tool `get_service_health_issues` funktioniert mit aktivem Größenwächter. Der ursprüngliche Fehler `SSE stream failed: Server-sent event exceeded the 1048576 byte limit` tritt bei diesem zuvor reproduzierten Aufruf nicht mehr auf. Gemessen: ungekürzte Antwort **1 194 971 Bytes**; Ergebnis 55 von 100 Einträgen, `truncated=true`, `isPartial=true`, `limitBytes=700000`, 50 `availableIds` (so hieß das Feld im deployten Stand; Semantik und Korrektur siehe „Befunde F-1/F-2“).
 
 **Implementiert und automatisiert getestet**
 - `ApiServer.Tests` (237): Größenwächter (Unicode/Escaping, Einzel-Item, Nicht-Collections), Token (Manipulation, Ablauf, Bindung, Schlüsselwechsel, Neustart), Validatoren inkl. Injektion, Suche (0/1/25/100/130 Items, Mehrseiten, Filter, Rückfall bei Graph-400, manipulierte `nextLink`, `MaxPages`, 403/404/429/503, Cancellation), Einzelabruf, Content (verlustfrei, Unicode/Emoji, Änderungserkennung, fremde Tokens/IDs), Startvalidierung.
@@ -69,13 +69,17 @@ markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `
 **Bekannte Einschränkungen**
 - Listen-Pagination ist offsetbasiert (`$skip` von Graph) und nur „best effort“ (`listConsistency`); Einträge können sich zwischen Seiten verschieben. Content ist über `contentVersion` konsistent (Änderung wird erkannt, nicht verhindert; kein Snapshot-Speicher).
 - `searchText` und die lokalen Filter durchsuchen höchstens `MicrosoftHealth:MaxPages` Seiten je Aufruf; bei Erreichen: `truncated`, `scanComplete=false`, Fortsetzung über Token.
-- Ein einzelner Datensatz wird nie gekürzt: Ist er für die Teilantwort zu groß, fehlt er dort und ist über `search_service_health_issues`, `get_service_health_issue` und den Content-Abruf erreichbar (nicht über `availableIds`, siehe „Offene Befunde“). Das Escaping-Maß ist konservativ; die tatsächliche Event-Größe liegt rund 100 Bytes über dem gemessenen Text (MCP-Rahmen).
+- Ein einzelner Datensatz wird nie gekürzt: Ist er für die Teilantwort zu groß, fehlt er dort und ist über `search_service_health_issues`, `get_service_health_issue` und den Content-Abruf erreichbar (über `omittedIds` lassen sich die ausgelassenen IDs erkennen, siehe „Befunde F-1/F-2“). Das Escaping-Maß ist konservativ; die tatsächliche Event-Größe liegt rund 100 Bytes über dem gemessenen Text (MCP-Rahmen).
 
-## Offene Befunde (Analyse 2026-10-18, kein Produktivcode geändert)
+## Befunde F-1/F-2 (Analyse 2026-10-18) – Fix vorbereitet, nicht deployt
 
-**F-1 `availableIds` ist keine Liste der ausgelassenen Einträge.** `ResponseSizeGuard` nimmt die IDs der **ersten 50 Einträge der gesamten Antwort** (hartes `Take(50)`, `ResponseSizeGuard.cs`), unabhängig davon, welche Einträge in `value` enthalten sind. Live: 100 Einträge, 55 zurückgegeben, 50 IDs – alle 50 gehören zu den bereits gelieferten Einträgen; die 45 ausgelassenen IDs werden nicht genannt. Es gehen keine Daten verloren: Alle Issues bleiben über `search_service_health_issues` (kompakt, paginiert, mit `contentRefs`) und `get_service_health_issue` erreichbar (automatisiert getestet, live noch nicht verifiziert). Irreführend sind Name und Hinweistext. Vorschlag für eine Korrektur: nur die IDs der ausgelassenen Einträge (mit eigenem Limit und Kennzeichnung) liefern oder das Feld umbenennen.
+Beide Befunde betreffen die Teilantwort des Größenwächters (`ResponseSizeGuard`). Es gingen keine Daten verloren; alle Issues blieben über `search_service_health_issues` und `get_service_health_issue` erreichbar (automatisiert getestet, live nicht verifiziert).
 
-**F-2 Teilantwort des Legacy-Tools verwirft `@odata.nextLink`.** Das Legacy-Tool liest nur die erste Graph-Seite (Standardgröße 100); `totalItems` zählt nur diese Seite. Enthält die Graph-Antwort einen `@odata.nextLink`, steht er in der Wächter-Teilantwort nicht mehr. Ob der Dev-Tenant weitere Seiten hat, ist nicht geprüft. Vollständige Listen liefert nur die neue Suche (mit `hasMore`/`continuationToken`). Korrektur: in der Teilantwort kennzeichnen, dass weitere Graph-Seiten existieren, oder das Tool auf die Suche verweisen lassen.
+**F-1 (deployter Stand): `availableIds` war keine Liste der ausgelassenen Einträge.** Das Feld enthielt die IDs der **ersten 50 Einträge der gesamten Antwort** (hartes `Take(50)`), unabhängig davon, welche Einträge in `value` standen. Live: 100 Einträge, 55 zurückgegeben, 50 IDs – alle gehörten zu den gelieferten Einträgen; die 45 ausgelassenen IDs wurden nicht genannt.
+*Fix (Branch `fix/q-api-2-guard-envelope`):* Das Feld heißt jetzt `omittedIds` und enthält ausschließlich die IDs der **nicht** in `value` enthaltenen Einträge, höchstens 50 (`ResponseSizeGuard.MaxOmittedIds`); `omittedIdsTruncated=true` zeigt an, dass es noch mehr ausgelassene Einträge gibt (diese liefert die Suche). `availableIds` entfällt (Umbenennung; das Feld existierte nur im Dev-Stand seit PR #36).
+
+**F-2 (deployter Stand): Die Teilantwort verwarf `@odata.nextLink`.** Das Legacy-Tool liest nur die erste Graph-Seite (Standardgröße 100); `totalItems` zählt nur diese Seite. Ob der Dev-Tenant weitere Seiten hat, wurde nicht geprüft.
+*Fix:* Gibt es einen `@odata.nextLink`, setzt die Teilantwort `moreGraphPages=true` und ergänzt `truncationReason`; der Link selbst wird bewusst nicht weitergereicht. Der Hinweistext nennt die Suche für vollständige Listen. Eine Antwort, die ohne Kürzung passt, bleibt das unveränderte Graph-JSON (inklusive `@odata.nextLink`).
 
 ## Berechtigungen: warum die Entwickler-Anmeldung ein 403 bekommt
 

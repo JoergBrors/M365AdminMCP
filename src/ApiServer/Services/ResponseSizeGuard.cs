@@ -65,6 +65,9 @@ public static class ResponseSizeGuard
 {
     public static int EscapedSize(string text) => JsonSerializer.SerializeToUtf8Bytes(text).Length;
 
+    /// <summary>Maximale Anzahl IDs in <c>omittedIds</c> (Rest wird mit <c>omittedIdsTruncated</c> gekennzeichnet).</summary>
+    public const int MaxOmittedIds = 50;
+
     /// <summary>Gibt <paramref name="json"/> unveraendert zurueck, wenn es passt; sonst eine strukturierte, markierte Teilantwort.</summary>
     public static string Enforce(string json, int limitBytes, string source, string hint)
     {
@@ -81,7 +84,7 @@ public static class ResponseSizeGuard
         }
         catch (JsonException)
         {
-            return Envelope(source, size, limitBytes, hint, [], 0, []);
+            return Envelope(source, size, limitBytes, hint, [], 0, [], false, false);
         }
 
         using (document)
@@ -91,22 +94,39 @@ public static class ResponseSizeGuard
                 : root.ValueKind == JsonValueKind.Object && root.TryGetProperty("value", out var v) && v.ValueKind == JsonValueKind.Array ? v
                 : default;
 
+            // Eine Graph-Antwort mit @odata.nextLink hat weitere Seiten, die diese Antwort nie enthaelt (der Link selbst wird nicht weitergereicht).
+            var moreGraphPages = root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("@odata.nextLink", out var next) && next.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(next.GetString());
+
             if (array.ValueKind != JsonValueKind.Array)
             {
-                return Envelope(source, size, limitBytes, hint, [], 0, []);
+                return Envelope(source, size, limitBytes, hint, [], 0, [], false, moreGraphPages);
             }
 
             var items = array.EnumerateArray().Select(e => e.GetRawText()).ToList();
             var ids = array.EnumerateArray()
                 .Select(e => e.ValueKind == JsonValueKind.Object && e.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString() : null)
-                .Where(id => id is not null).Cast<string>().Take(50).ToList();
+                .ToList();
 
-            // Groesstes k, fuer das die Antwort noch passt (Groesse waechst monoton mit k).
+            // IDs der NICHT enthaltenen Eintraege (ab Index k), begrenzt auf MaxOmittedIds.
+            (List<string> Ids, bool Truncated) Omitted(int k)
+            {
+                var all = ids.Skip(k).Where(id => id is not null).Cast<string>().ToList();
+                return (all.Take(MaxOmittedIds).ToList(), all.Count > MaxOmittedIds);
+            }
+
+            string Build(int k)
+            {
+                var (omitted, omittedTruncated) = Omitted(k);
+                return Envelope(source, size, limitBytes, hint, items.Take(k).ToList(), items.Count, omitted, omittedTruncated, moreGraphPages);
+            }
+
+            // Groesstes k, fuer das die Antwort noch passt. Zurueckgegeben wird genau eine geprueft passende Konfiguration.
             int lo = 0, hi = items.Count;
             while (lo < hi)
             {
                 var mid = (lo + hi + 1) / 2;
-                if (EscapedSize(Envelope(source, size, limitBytes, hint, items.Take(mid).ToList(), items.Count, ids)) <= limitBytes)
+                if (EscapedSize(Build(mid)) <= limitBytes)
                 {
                     lo = mid;
                 }
@@ -116,22 +136,33 @@ public static class ResponseSizeGuard
                 }
             }
 
-            return Envelope(source, size, limitBytes, hint, items.Take(lo).ToList(), items.Count, ids);
+            return Build(lo);
         }
     }
 
-    private static string Envelope(string source, int originalSize, int limit, string hint, IReadOnlyList<string> rawItems, int totalItems, IReadOnlyList<string> ids)
+    private static string Envelope(
+        string source, int originalSize, int limit, string hint, IReadOnlyList<string> rawItems, int totalItems,
+        IReadOnlyList<string> omittedIds, bool omittedIdsTruncated, bool moreGraphPages)
     {
+        var reason = $"Antwort ({originalSize} Bytes) ueberschreitet das Limit von {limit} Bytes; nur {rawItems.Count} von {totalItems} Eintraegen enthalten.";
+        if (moreGraphPages)
+        {
+            reason += " Zusaetzlich existieren weitere Graph-Seiten, die diese Antwort nicht enthaelt.";
+        }
+
         var sb = new StringBuilder();
         sb.Append("{\"truncated\":true,\"isPartial\":true,\"source\":").Append(JsonSerializer.Serialize(source));
-        sb.Append(",\"truncationReason\":").Append(JsonSerializer.Serialize(
-            $"Antwort ({originalSize} Bytes) ueberschreitet das Limit von {limit} Bytes; nur {rawItems.Count} von {totalItems} Eintraegen enthalten."));
+        sb.Append(",\"truncationReason\":").Append(JsonSerializer.Serialize(reason));
         sb.Append(",\"originalSizeBytes\":").Append(originalSize);
         sb.Append(",\"limitBytes\":").Append(limit);
         sb.Append(",\"returnedItems\":").Append(rawItems.Count);
+        // totalItems = Eintraege der abgerufenen Graph-Seite (nicht zwingend aller Eintraege im Tenant, siehe moreGraphPages).
         sb.Append(",\"totalItems\":").Append(totalItems);
+        sb.Append(",\"moreGraphPages\":").Append(moreGraphPages ? "true" : "false");
         sb.Append(",\"hint\":").Append(JsonSerializer.Serialize(hint));
-        sb.Append(",\"availableIds\":").Append(JsonSerializer.Serialize(ids));
+        // IDs der in "value" NICHT enthaltenen Eintraege (max. MaxOmittedIds; omittedIdsTruncated = es gibt noch mehr).
+        sb.Append(",\"omittedIds\":").Append(JsonSerializer.Serialize(omittedIds));
+        sb.Append(",\"omittedIdsTruncated\":").Append(omittedIdsTruncated ? "true" : "false");
         sb.Append(",\"value\":[").Append(string.Join(",", rawItems)).Append("]}");
         return sb.ToString();
     }
