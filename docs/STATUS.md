@@ -70,7 +70,7 @@ Priorität P0 kritisch … P3 niedrig. „Eigentümer“ = Entscheidung/Freigabe
 | 9 | **DCR-Missbrauch**: Gesamtquote/TTL für Registrierungen fehlt (nur Rate Limit je IP) | F-011 | P2 | Entwicklung | Quote und Ablauf einführen |
 | 10 | **CORS** `AllowAnyOrigin` am McpServer | F-007 | P2 | Entwicklung | Herkunftsliste (Copilot-Studio-Discovery beachten) |
 | 11 | **API-Key** abschaffen oder pro Client scopen | F-003, D-4, Q-SEC-3 | P2 | Eigentümer | abschaffen (ungenutzt) |
-| 12 | **Report-Paging und Antwortgrößen** | Q-API-2, ADR-0010 | P2 | Entwicklung | Limits, `nextLink` |
+| 12 | **Report-Paging und Antwortgrößen / SSE-Limit** (Issues: umgesetzt und automatisiert getestet auf Branch `feature/q-api-2-large-responses`, **nicht gemergt/deployt, nicht live getestet**; Messages/Reports: nur Größenwächter, **Paging offen**) | Q-API-2, ADR-0010 | P2 | Entwicklung | Review/Merge/Deploy (Terraform: neues Secret `api-continuation-signing-key`), Live-Test über Gateway, Paging für Messages/Reports; Details [Q-API-2-RESPONSE-LIMITS.md](Q-API-2-RESPONSE-LIMITS.md) |
 | 13 | **Testprojekt für den McpServer** (OAuth-Fassade, UserContext-Client-Seite, Hardening) | Q-EXT-2 | P2 | Entwicklung | xUnit-Projekt anlegen |
 | 14 | **SAST, IaC-Scanner (tfsec/Checkov/Trivy), SBOM** in CI | Q-TF-1 | P2 | Entwicklung | als nicht blockierende Jobs |
 | 15 | **Gateway-Containerstart** 140–170 s (auch B1) | F-014, Q-GW-4 | P2 | Entwicklung | Start messen/optimieren, Always On vorhanden |

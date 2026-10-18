@@ -61,6 +61,14 @@ builder.Services.AddSingleton<HealthRequestRunner>();
 builder.Services.AddSingleton<MicrosoftServiceHealthClient>();
 builder.Services.AddSingleton<AzureResourceHealthClient>();
 builder.Services.AddSingleton<MicrosoftHealthSummaryService>();
+
+// --- Antwortgroessen, Fortsetzungs-Tokens und Issue-Suche (Q-API-2) ---
+builder.Services.AddSingleton<IValidateOptions<ResponseLimitsOptions>, ResponseLimitsOptionsValidator>();
+builder.Services.AddOptions<ResponseLimitsOptions>()
+    .Bind(builder.Configuration.GetSection(ResponseLimitsOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddSingleton<ContinuationTokenService>();
+builder.Services.AddSingleton<ServiceHealthIssueService>();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo

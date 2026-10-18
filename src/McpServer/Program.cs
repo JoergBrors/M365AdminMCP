@@ -104,12 +104,7 @@ if (requireMcpAuthentication)
 builder.Services
     .AddMcpServer()
     .WithHttpTransport()
-    .WithTools<TasksTool>()
-    .WithTools<M365StatusTool>()
-    .WithTools<M365MessagesTool>()
-    .WithTools<M365AdoptionTool>()
-    .WithTools<M365AdoptionCatalogTool>()
-    .WithTools<MicrosoftHealthTools>();
+    .AddM365Tools();
 
 var app = builder.Build();
 
