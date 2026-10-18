@@ -47,7 +47,9 @@ markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `
 
 **Live verifiziert (Dev, 2026-10-18)**
 - Deployment: Lauf `39113383973` – `build`, `gateway-ci`, `deploy-dev` erfolgreich; Terraform Apply `2 added, 1 changed, 0 destroyed` (keine Löschung, keine Rollenänderung). Der ApiServer ist mit dem dedizierten Signaturschlüssel aus dem Key Vault gestartet (die Startvalidierung hätte sonst abgebrochen).
-- Legacy-Tool `get_service_health_issues` funktioniert mit aktivem Größenwächter. Der ursprüngliche Fehler `SSE stream failed: Server-sent event exceeded the 1048576 byte limit` tritt bei diesem zuvor reproduzierten Aufruf nicht mehr auf. Gemessen: ungekürzte Antwort **1 194 971 Bytes**; Ergebnis 55 von 100 Einträgen, `truncated=true`, `isPartial=true`, `limitBytes=700000`, 50 `availableIds` (so hieß das Feld im deployten Stand; Semantik und Korrektur siehe „Befunde F-1/F-2“).
+- Legacy-Tool `get_service_health_issues` funktioniert mit aktivem Größenwächter. Der ursprüngliche Fehler `SSE stream failed: Server-sent event exceeded the 1048576 byte limit` tritt bei diesem zuvor reproduzierten Aufruf nicht mehr auf. Gemessen: ungekürzte Antwort **1 194 971 Bytes**; Ergebnis 55 von 100 Einträgen, `truncated=true`, `isPartial=true`, `limitBytes=700000`, 50 `availableIds` (so hieß das Feld im damaligen Stand; Semantik und Korrektur siehe „Befunde F-1/F-2“).
+- Fix F-1/F-2 (PR #38, `eaf7c35`, Lauf `39120403403`, Apply `0 added, 0 changed, 0 destroyed`): derselbe Aufruf liefert jetzt 55 von 100 Einträgen mit `moreGraphPages=true`, `omittedIds` (45 IDs, keine davon in `value`, `omittedIdsTruncated=false`), erweitertem `truncationReason` und dem Hinweis auf die Suche; größtes gemessenes SSE-Event **654 226 Bytes**.
+- Neue Tools am echten Dev-Tenant, direkt gegen den deployten MCP-Server (Entwickler-Token per `az`, **nicht** über das Gateway): `tools/list` enthält 20 Tools inkl. der drei neuen. `search_service_health_issues`: 302 Issues (289 gelöst, 13 offen – alle `advisory`; 217 Advisories + 85 Incidents) über 4 Aufrufe mit `continuationToken`, `scanComplete=true`; Graph-Filter `service` und `isResolved` (`filterMode=graph`) liefern passende Ergebnisse, die lokalen Filter `classification`, `searchText`, `startFrom` laufen. `get_service_health_issue` (Issue mit 56 Posts, `contentRefs`, `contentVersion`) und `get_service_health_issue_content` (`impact`, `details`, `post:0`): Offsets lückenlos, `contentVersion` stabil, Länge = `totalChars`. Ein manipuliertes `continuationToken` liefert `invalid_continuation_token` ohne Inhalt. Größtes SSE-Event über alle Aufrufe 654 226 Bytes.
 
 **Implementiert und automatisiert getestet**
 - `ApiServer.Tests` (237): Größenwächter (Unicode/Escaping, Einzel-Item, Nicht-Collections), Token (Manipulation, Ablauf, Bindung, Schlüsselwechsel, Neustart), Validatoren inkl. Injektion, Suche (0/1/25/100/130 Items, Mehrseiten, Filter, Rückfall bei Graph-400, manipulierte `nextLink`, `MaxPages`, 403/404/429/503, Cancellation), Einzelabruf, Content (verlustfrei, Unicode/Emoji, Änderungserkennung, fremde Tokens/IDs), Startvalidierung.
@@ -56,10 +58,11 @@ markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `
 - Inspector 2.11.0 (CLI): `tools/list` und `tools/call` gegen den E2E-Host ohne Meldung.
 
 **Implementiert, noch nicht live verifiziert**
-- Die Tools `search_service_health_issues`, `get_service_health_issue`, `get_service_health_issue_content` am echten Tenant: Graph-Filterung, Fortsetzung über mehrere Seiten, verlustfreier Content-Abruf. Der Eigentümer meldet einen erfolgreichen ChatGPT-Test; Umfang und Protokoll sind nicht dokumentiert und werden daher **nicht** als Nachweis gewertet.
-- Live-End-to-End-Prüfung der neuen Tools über das FastMCP-Gateway.
-- Hinweise zur Filterung (Graph-Filterverhalten: `service`/`isResolved` werden serverseitig als `$filter` gesendet, so wie schon im bestehenden Fallback-Pfad – dort live nicht belegt; `classification`, `status`, Datum, `searchText` laufen **lokal** im ApiServer, ein Graph-Filter wird dafür nicht gesendet).
+- Mehrteiliger Content-Abruf am echten Tenant: der größte gefundene Post (unter den ersten 40 Issues) hat nur 2 490 Zeichen, sodass jeder Live-Abruf in **einem** Chunk endete; mehrere Chunks, `content_changed` und Token-Gültigkeit über einen API-Neustart sind nur automatisiert getestet.
+- Inhaltliche Gegenprüfung der lokalen Filter `searchText` und `startFrom` gegen eine unabhängige Quelle (live nur auf Plausibilität/Summen geprüft).
+- Live-End-to-End-Prüfung der neuen Tools über das FastMCP-Gateway (der Live-Test lief direkt gegen den MCP-Server). Der Eigentümer meldete zuvor einen erfolgreichen ChatGPT-Test; Umfang und Protokoll sind nicht dokumentiert und werden daher **nicht** als Nachweis gewertet.
 - Warnungen der Inspector-**Web-Oberfläche** (CLI zeigt keine; die UI wurde nicht bedient).
+- Hinweis: `classification`, `status`, Datum und `searchText` laufen **lokal** im ApiServer (kein Graph-Filter); `service`/`isResolved` werden als Graph-`$filter` gesendet (live bestätigt).
 
 **Weiter offen**
 - Vollständiges Paging für Message-Center-Nachrichten und Reports (nur Größenwächter mit markierter Teilantwort; kein Folgeabruf).
@@ -71,14 +74,14 @@ markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `
 - `searchText` und die lokalen Filter durchsuchen höchstens `MicrosoftHealth:MaxPages` Seiten je Aufruf; bei Erreichen: `truncated`, `scanComplete=false`, Fortsetzung über Token.
 - Ein einzelner Datensatz wird nie gekürzt: Ist er für die Teilantwort zu groß, fehlt er dort und ist über `search_service_health_issues`, `get_service_health_issue` und den Content-Abruf erreichbar (über `omittedIds` lassen sich die ausgelassenen IDs erkennen, siehe „Befunde F-1/F-2“). Das Escaping-Maß ist konservativ; die tatsächliche Event-Größe liegt rund 100 Bytes über dem gemessenen Text (MCP-Rahmen).
 
-## Befunde F-1/F-2 (Analyse 2026-10-18) – Fix vorbereitet, nicht deployt
+## Befunde F-1/F-2 (Analyse 2026-10-18) – behoben (PR #38, in Dev deployt, live bestätigt)
 
 Beide Befunde betreffen die Teilantwort des Größenwächters (`ResponseSizeGuard`). Es gingen keine Daten verloren; alle Issues blieben über `search_service_health_issues` und `get_service_health_issue` erreichbar (automatisiert getestet, live nicht verifiziert).
 
 **F-1 (deployter Stand): `availableIds` war keine Liste der ausgelassenen Einträge.** Das Feld enthielt die IDs der **ersten 50 Einträge der gesamten Antwort** (hartes `Take(50)`), unabhängig davon, welche Einträge in `value` standen. Live: 100 Einträge, 55 zurückgegeben, 50 IDs – alle gehörten zu den gelieferten Einträgen; die 45 ausgelassenen IDs wurden nicht genannt.
-*Fix (Branch `fix/q-api-2-guard-envelope`):* Das Feld heißt jetzt `omittedIds` und enthält ausschließlich die IDs der **nicht** in `value` enthaltenen Einträge, höchstens 50 (`ResponseSizeGuard.MaxOmittedIds`); `omittedIdsTruncated=true` zeigt an, dass es noch mehr ausgelassene Einträge gibt (diese liefert die Suche). `availableIds` entfällt (Umbenennung; das Feld existierte nur im Dev-Stand seit PR #36).
+*Fix (PR #38, `eaf7c35`):* Das Feld heißt jetzt `omittedIds` und enthält ausschließlich die IDs der **nicht** in `value` enthaltenen Einträge, höchstens 50 (`ResponseSizeGuard.MaxOmittedIds`); `omittedIdsTruncated=true` zeigt an, dass es noch mehr ausgelassene Einträge gibt (diese liefert die Suche). `availableIds` entfällt (Umbenennung; das Feld existierte nur im Dev-Stand seit PR #36).
 
-**F-2 (deployter Stand): Die Teilantwort verwarf `@odata.nextLink`.** Das Legacy-Tool liest nur die erste Graph-Seite (Standardgröße 100); `totalItems` zählt nur diese Seite. Ob der Dev-Tenant weitere Seiten hat, wurde nicht geprüft.
+**F-2 (deployter Stand): Die Teilantwort verwarf `@odata.nextLink`.** Das Legacy-Tool liest nur die erste Graph-Seite (Standardgröße 100); `totalItems` zählt nur diese Seite. Live bestätigt: Der Dev-Tenant hat 302 Issues, die erste Graph-Seite enthält 100; `moreGraphPages=true` ist korrekt.
 *Fix:* Gibt es einen `@odata.nextLink`, setzt die Teilantwort `moreGraphPages=true` und ergänzt `truncationReason`; der Link selbst wird bewusst nicht weitergereicht. Der Hinweistext nennt die Suche für vollständige Listen. Eine Antwort, die ohne Kürzung passt, bleibt das unveränderte Graph-JSON (inklusive `@odata.nextLink`).
 
 ## Berechtigungen: warum die Entwickler-Anmeldung ein 403 bekommt
