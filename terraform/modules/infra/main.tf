@@ -71,6 +71,23 @@ resource "azurerm_key_vault_secret" "api_client_secret" {
   depends_on   = [azurerm_role_assignment.deployer_kv_admin]
 }
 
+# Dedizierter HMAC-Schluessel fuer die Fortsetzungs-Tokens des ApiServers (Q-API-2). Bewusst KEIN bestehendes OAuth-Secret.
+# Der Wert entsteht nur in Terraform (State, wie die uebrigen Secrets) und im Key Vault; er wird nie als Output ausgegeben.
+# Rotation: terraform apply -replace="module.infra.random_password.continuation_signing_key" - danach sind bereits ausgegebene
+# Tokens ungueltig (Clients rufen die Abfrage ohne Token neu auf); die App uebernimmt die neue Version spaetestens nach Neustart.
+resource "random_password" "continuation_signing_key" {
+  length  = 64
+  special = false
+}
+
+resource "azurerm_key_vault_secret" "continuation_signing_key" {
+  name         = "api-continuation-signing-key"
+  value        = random_password.continuation_signing_key.result
+  key_vault_id = azurerm_key_vault.this.id
+  content_type = "HMAC signing key for MCP continuation tokens"
+  depends_on   = [azurerm_role_assignment.deployer_kv_admin]
+}
+
 resource "azurerm_key_vault_secret" "api_app_id" {
   name         = "api-server-app-id"
   value        = var.api_app_id
@@ -155,9 +172,11 @@ resource "azurerm_linux_web_app" "api" {
     "AzureAd__Audience"                     = var.api_app_identifier_uri
     "AzureAd__ClientSecret"                 = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.api_client_secret.versionless_id})"
     "GraphAuth__UseManagedIdentity"         = "true"
-    "SwaggerOAuth__ClientId"                = var.swagger_client_app_id
-    "SwaggerOAuth__Scope"                   = "${var.api_app_identifier_uri}/Tasks.ReadWrite"
-    "ASPNETCORE_ENVIRONMENT"                = "Production"
+    # Pflicht ausserhalb von Development: der ApiServer startet ohne gueltigen Schluessel nicht (ResponseLimitsOptionsValidator).
+    "ResponseLimits__ContinuationSigningKey" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.continuation_signing_key.versionless_id})"
+    "SwaggerOAuth__ClientId"                 = var.swagger_client_app_id
+    "SwaggerOAuth__Scope"                    = "${var.api_app_identifier_uri}/Tasks.ReadWrite"
+    "ASPNETCORE_ENVIRONMENT"                 = "Production"
 
     # Microsoft Health (Intune/Microsoft 365 ueber Graph, Azure Service/Resource Health ueber ARM) - nur lesend.
     # Azure-Abfragen sind nur fuer die unten gelisteten Subscriptions moeglich; ohne Eintrag ist der Azure-Teil deaktiviert.

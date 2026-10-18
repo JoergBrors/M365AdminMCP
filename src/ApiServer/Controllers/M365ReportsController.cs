@@ -4,6 +4,7 @@ using ApiServer.Services;
 using McpServer.Reporting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace ApiServer.Controllers;
 
@@ -14,9 +15,12 @@ public class M365ReportsController : ControllerBase
 {
     private readonly GraphApiClient _graphApiClient;
 
-    public M365ReportsController(GraphApiClient graphApiClient)
+    private readonly ResponseLimitsOptions _limits;
+
+    public M365ReportsController(GraphApiClient graphApiClient, IOptions<ResponseLimitsOptions> limits)
     {
         _graphApiClient = graphApiClient;
+        _limits = limits.Value;
     }
 
     [HttpGet("catalog")]
@@ -68,7 +72,8 @@ public class M365ReportsController : ControllerBase
 
         return new ContentResult
         {
-            Content = json,
+            Content = ResponseSizeGuard.Enforce(json, _limits.MaxResponseBytes, "microsoftGraph.reports",
+                "Report zu gross. Kleineren Zeitraum (period D7 statt D180) oder ein date waehlen."),
             ContentType = "application/json"
         };
     }

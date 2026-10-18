@@ -49,7 +49,7 @@ public class ApiTokenService
     }
 
     /// <summary>App-only Token (Client Credentials) – Audience = ApiServer, Claim "roles".</summary>
-    public async Task<string> GetAppOnlyTokenAsync()
+    public virtual async Task<string> GetAppOnlyTokenAsync()
     {
         var scopes = new[] { $"{_options.ApiAppIdUri}/.default" };
         if (_managedIdentityCredential is not null)
