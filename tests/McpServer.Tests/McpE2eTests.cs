@@ -114,7 +114,7 @@ public class McpE2eTests(ITestOutputHelper output)
         Assert.True(result.MaxEventBytes < ClientEventLimit);
         using var doc = JsonDocument.Parse(result.Text);
         Assert.Equal(0, doc.RootElement.GetProperty("returnedItems").GetInt32());
-        Assert.Equal("MC-HUGE", doc.RootElement.GetProperty("availableIds")[0].GetString());
+        Assert.Equal("MC-HUGE", doc.RootElement.GetProperty("omittedIds")[0].GetString());
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public class McpE2eTests(ITestOutputHelper output)
         var legacy = await CallAsync(host.McpUrl, "get_service_health_issues", new { });
         using var legacyDoc = JsonDocument.Parse(legacy.Text);
         Assert.True(legacyDoc.RootElement.GetProperty("truncated").GetBoolean());
-        var anyId = legacyDoc.RootElement.GetProperty("availableIds").EnumerateArray().Select(x => x.GetString()).Last()!; // auch ein nicht mehr enthaltener Eintrag
+        var anyId = legacyDoc.RootElement.GetProperty("omittedIds").EnumerateArray().Select(x => x.GetString()).First()!; // ein tatsaechlich ausgelassener Eintrag
 
         var search = await CallAsync(host.McpUrl, "search_service_health_issues", new { service = "Exchange Online", maxResults = 100 });
         output.WriteLine($"search: {search.Text.Length} chars, maxSseEvent={search.MaxEventBytes}");
