@@ -1,8 +1,8 @@
 # Q-API-2 – Antwortgrößen, Paging und verlustfreier Issue-Abruf
 
-Arbeitspaket auf Branch `feature/q-api-2-large-responses` (**nicht gemergt, nicht deployt**). Fasst Q-API-2 (Report-Paging/Antwortgrößen) und den Fehler
+Arbeitspaket, umgesetzt in PR #36 (Merge-Commit `897a14a`, **in Dev deployt**; GitHub-Actions-Lauf `39113383973`). Fasst Q-API-2 (Report-Paging/Antwortgrößen) und den Fehler
 `SSE stream failed: Server-sent event exceeded the 1048576 byte limit` (Tool `get_service_health_issues`) zusammen.
-**Q-API-2 ist nicht abgeschlossen** (siehe „Offen“).
+**Status: PARTIALLY_IMPLEMENTED / offen** (siehe „Weiter offen“ und „Offene Befunde“).
 
 ## Ursache (nachgewiesen)
 
@@ -45,26 +45,37 @@ markierte Teilantwort (`truncated`, `isPartial`, `returnedItems`/`totalItems`, `
 
 ## Teststand
 
+**Live verifiziert (Dev, 2026-10-18)**
+- Deployment: Lauf `39113383973` – `build`, `gateway-ci`, `deploy-dev` erfolgreich; Terraform Apply `2 added, 1 changed, 0 destroyed` (keine Löschung, keine Rollenänderung). Der ApiServer ist mit dem dedizierten Signaturschlüssel aus dem Key Vault gestartet (die Startvalidierung hätte sonst abgebrochen).
+- Legacy-Tool `get_service_health_issues` funktioniert mit aktivem Größenwächter. Der ursprüngliche Fehler `SSE stream failed: Server-sent event exceeded the 1048576 byte limit` tritt bei diesem zuvor reproduzierten Aufruf nicht mehr auf. Gemessen: ungekürzte Antwort **1 194 971 Bytes**; Ergebnis 55 von 100 Einträgen, `truncated=true`, `isPartial=true`, `limitBytes=700000`, 50 `availableIds` (Semantik siehe „Offene Befunde“).
+
 **Implementiert und automatisiert getestet**
 - `ApiServer.Tests` (237): Größenwächter (Unicode/Escaping, Einzel-Item, Nicht-Collections), Token (Manipulation, Ablauf, Bindung, Schlüsselwechsel, Neustart), Validatoren inkl. Injektion, Suche (0/1/25/100/130 Items, Mehrseiten, Filter, Rückfall bei Graph-400, manipulierte `nextLink`, `MaxPages`, 403/404/429/503, Cancellation), Einzelabruf, Content (verlustfrei, Unicode/Emoji, Änderungserkennung, fremde Tokens/IDs), Startvalidierung.
 - `McpServer.Tests` (19): veröffentlichte `tools/list`-Schemas (keine Null-Typ-Arrays in den neuen Tools, Namen/`required` der Alt-Tools unverändert) und E2E über echtes MCP (HTTP/SSE) mit echten ApiServer-Controllern und simuliertem Graph: größtes gemessenes SSE-Event **700 091 Bytes** (Client-Limit 1 048 576), Größenmatrix um das Limit (300 KB–1,5 MB, ASCII und Unicode), einzelnes 3-MB-Item, 1,8 Mio. Zeichen Content in 9 Chunks byte-identisch, Token über „Neustart“, Änderung, Rotation.
 - Gateway-Strecke (`tests/gateway_e2e/gateway_leg_e2e.py`, Client-Aufbau wie `make_backend_client`): bestanden, inkl. Negativkontrolle. Bestehende Gateway-Tests: 59 bestanden.
 - Inspector 2.11.0 (CLI): `tools/list` und `tools/call` gegen den E2E-Host ohne Meldung.
 
-**Implementiert, nicht live getestet**
-- Aufruf gegen den echten Tenant/Graph und das deployte Gateway (Graph-Filterverhalten: `service`/`isResolved` werden serverseitig als `$filter` gesendet, so wie schon im bestehenden Fallback-Pfad – dort live nicht belegt; `classification`, `status`, Datum, `searchText` laufen **lokal** im ApiServer, ein Graph-Filter wird dafür nicht gesendet).
-- Key-Vault-Auflösung des Schlüssels in Azure (Plan geprüft, nicht angewendet).
+**Implementiert, noch nicht live verifiziert**
+- Die Tools `search_service_health_issues`, `get_service_health_issue`, `get_service_health_issue_content` am echten Tenant: Graph-Filterung, Fortsetzung über mehrere Seiten, verlustfreier Content-Abruf. Der Eigentümer meldet einen erfolgreichen ChatGPT-Test; Umfang und Protokoll sind nicht dokumentiert und werden daher **nicht** als Nachweis gewertet.
+- Live-End-to-End-Prüfung der neuen Tools über das FastMCP-Gateway.
+- Hinweise zur Filterung (Graph-Filterverhalten: `service`/`isResolved` werden serverseitig als `$filter` gesendet, so wie schon im bestehenden Fallback-Pfad – dort live nicht belegt; `classification`, `status`, Datum, `searchText` laufen **lokal** im ApiServer, ein Graph-Filter wird dafür nicht gesendet).
 - Warnungen der Inspector-**Web-Oberfläche** (CLI zeigt keine; die UI wurde nicht bedient).
 
-**Offen**
-- Paging für Messages und Reports (nur Größenwächter mit markierter Teilantwort; kein Folgeabruf).
-- Sieben bestehende Tools veröffentlichen weiterhin Null-Typ-Arrays (`azure_service_health`, `azure_subscription_resource_health`, `get_adoption_report`, `get_message_center_messages`, `intune_service_incidents`, `list_adoption_reports`, `microsoft_service_messages`); bewusst unverändert, per Test dokumentiert. Angleichen wäre eine sichtbare Schemaänderung bestehender Tools.
+**Weiter offen**
+- Vollständiges Paging für Message-Center-Nachrichten und Reports (nur Größenwächter mit markierter Teilantwort; kein Folgeabruf).
+- Legacy-Schema-Warnungen: sieben bestehende Tools veröffentlichen weiterhin Null-Typ-Arrays (`azure_service_health`, `azure_subscription_resource_health`, `get_adoption_report`, `get_message_center_messages`, `intune_service_incidents`, `list_adoption_reports`, `microsoft_service_messages`); bewusst unverändert, per Test dokumentiert. Angleichen wäre eine sichtbare Schemaänderung bestehender Tools.
 - Gateway-Limit unverändert: FastMCP 4.1.0 reicht `max_sse_event_size` nicht durch; die Begrenzung liegt serverseitig.
 
 **Bekannte Einschränkungen**
 - Listen-Pagination ist offsetbasiert (`$skip` von Graph) und nur „best effort“ (`listConsistency`); Einträge können sich zwischen Seiten verschieben. Content ist über `contentVersion` konsistent (Änderung wird erkannt, nicht verhindert; kein Snapshot-Speicher).
 - `searchText` und die lokalen Filter durchsuchen höchstens `MicrosoftHealth:MaxPages` Seiten je Aufruf; bei Erreichen: `truncated`, `scanComplete=false`, Fortsetzung über Token.
-- Ein einzelner Datensatz wird nie gekürzt: Er ist in der Liste nicht enthalten, aber per `availableIds` und Content-Abruf erreichbar. Das Escaping-Maß ist konservativ; die tatsächliche Event-Größe liegt rund 100 Bytes über dem gemessenen Text (MCP-Rahmen).
+- Ein einzelner Datensatz wird nie gekürzt: Ist er für die Teilantwort zu groß, fehlt er dort und ist über `search_service_health_issues`, `get_service_health_issue` und den Content-Abruf erreichbar (nicht über `availableIds`, siehe „Offene Befunde“). Das Escaping-Maß ist konservativ; die tatsächliche Event-Größe liegt rund 100 Bytes über dem gemessenen Text (MCP-Rahmen).
+
+## Offene Befunde (Analyse 2026-10-18, kein Produktivcode geändert)
+
+**F-1 `availableIds` ist keine Liste der ausgelassenen Einträge.** `ResponseSizeGuard` nimmt die IDs der **ersten 50 Einträge der gesamten Antwort** (hartes `Take(50)`, `ResponseSizeGuard.cs`), unabhängig davon, welche Einträge in `value` enthalten sind. Live: 100 Einträge, 55 zurückgegeben, 50 IDs – alle 50 gehören zu den bereits gelieferten Einträgen; die 45 ausgelassenen IDs werden nicht genannt. Es gehen keine Daten verloren: Alle Issues bleiben über `search_service_health_issues` (kompakt, paginiert, mit `contentRefs`) und `get_service_health_issue` erreichbar (automatisiert getestet, live noch nicht verifiziert). Irreführend sind Name und Hinweistext. Vorschlag für eine Korrektur: nur die IDs der ausgelassenen Einträge (mit eigenem Limit und Kennzeichnung) liefern oder das Feld umbenennen.
+
+**F-2 Teilantwort des Legacy-Tools verwirft `@odata.nextLink`.** Das Legacy-Tool liest nur die erste Graph-Seite (Standardgröße 100); `totalItems` zählt nur diese Seite. Enthält die Graph-Antwort einen `@odata.nextLink`, steht er in der Wächter-Teilantwort nicht mehr. Ob der Dev-Tenant weitere Seiten hat, ist nicht geprüft. Vollständige Listen liefert nur die neue Suche (mit `hasMore`/`continuationToken`). Korrektur: in der Teilantwort kennzeichnen, dass weitere Graph-Seiten existieren, oder das Tool auf die Suche verweisen lassen.
 
 ## Berechtigungen: warum die Entwickler-Anmeldung ein 403 bekommt
 
